@@ -1,0 +1,3 @@
+# Mengabaikan file AI agar tidak di-parsing oleh Airflow
+AGENTS.md
+opencode.json
