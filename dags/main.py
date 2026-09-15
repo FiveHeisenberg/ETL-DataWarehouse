@@ -29,12 +29,18 @@ DWH_DB = "dwh"
 # ============================================================
 
 from dukcapil import create_dukcapil_tasks
+from disnaker import create_disnaker_tasks
 
 PIPELINE_TASKS = [
     {
         "name": "dukcapil",
         "create_tasks": create_dukcapil_tasks,
         "api_base_url": "http://192.168.222.152:8000/api",
+    },
+        {
+        "name": "disnaker",
+        "create_tasks": create_disnaker_tasks,
+        "api_base_url": "http://192.168.222.71:8000/api",
     },
     # Contoh source baru dengan IP berbeda:
     # {
