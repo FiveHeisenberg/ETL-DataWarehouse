@@ -16,3 +16,7 @@ airflow.db
 
 **/.astro/dbt_metadata.json
 **/.astro/manifest.slim.json
+
+# AI Agent Configuration (Local Only)
+AGENTS.md
+opencode.json
