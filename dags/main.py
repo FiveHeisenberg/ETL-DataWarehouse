@@ -1,11 +1,7 @@
 from __future__ import annotations
 
-<<<<<<< HEAD
 import inspect
-=======
->>>>>>> origin/etl/dinsos
 import logging
-
 import pendulum
 
 from airflow.sdk import dag, task
