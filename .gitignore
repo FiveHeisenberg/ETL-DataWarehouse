@@ -16,7 +16,10 @@ airflow.db
 
 **/.astro/dbt_metadata.json
 **/.astro/manifest.slim.json
+<<<<<<< HEAD
 
 # AI Agent Configuration (Local Only)
 AGENTS.md
 opencode.json
+=======
+>>>>>>> origin/etl/dinsos
