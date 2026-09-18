@@ -3,6 +3,7 @@ from __future__ import annotations
 import logging
 
 import pendulum
+import requests
 
 from airflow.sdk import task
 
@@ -12,13 +13,13 @@ from airflow.sdk import task
 # ============================================================
 # Sesuai skema db_pendidikan:
 # tb_waktu, tb_sekolah, tb_ptk, tb_siswa, tb_sarana, tb_pendidikan
-SOURCE_TABLES = {
-    "tb_waktu":      "tb_waktu",
-    "tb_sekolah":    "tb_sekolah",
-    "tb_ptk":        "tb_ptk",
-    "tb_siswa":      "tb_siswa",
-    "tb_sarana":     "tb_sarana",
-    "tb_pendidikan": "tb_pendidikan",
+SOURCE_ENDPOINTS = {
+    "tb_waktu":      "/waktu",
+    "tb_sekolah":    "/sekolah",
+    "tb_ptk":        "/ptk",
+    "tb_siswa":      "/siswa",
+    "tb_sarana":     "/sarana",
+    "tb_pendidikan": "/pendidikan",
 }
 
 
@@ -29,82 +30,89 @@ SOURCE_TABLES = {
 def create_pendidikan_tasks(
     execute_sql,
     get_mysql_hook,
-    get_source_hook,
-    source_db,
     raw_db,
     staging_db,
+    dwh_db,
+    api_base_url,
 ):
     """
     execute_sql      : helper untuk jalanin list query SQL (didefinisikan di main.py)
     get_mysql_hook   : helper untuk koneksi ke server raw_data & staging_area
-    get_source_hook  : helper untuk koneksi ke database SUMBER pendidikan (MySQL/MariaDB)
-    source_db        : nama database sumber, mis. "db_pendidikan"
     raw_db           : nama database raw_data
     staging_db       : nama database staging_area
+    dwh_db           : nama database dwh
+    api_base_url     : base URL API sumber pendidikan, mis. "http://...:5000/api"
     """
 
     # ========================================================
-    # TASK: EXTRACT DB SOURCE -> RAW_DATA
+    # TASK: EXTRACT API -> RAW_DATA
     # ========================================================
 
     @task
     def extract_to_raw():
 
-        source_hook = get_source_hook()
-        source_conn = source_hook.get_conn()
-        source_cursor = source_conn.cursor()
-
-        raw_hook = get_mysql_hook()
-        raw_conn = raw_hook.get_conn()
-        raw_cursor = raw_conn.cursor()
+        hook = get_mysql_hook()
+        conn = hook.get_conn()
+        cursor = conn.cursor()
 
         try:
 
-            for raw_name, source_table in SOURCE_TABLES.items():
+            for table_name, endpoint in SOURCE_ENDPOINTS.items():
 
-                raw_table = f"raw_{raw_name}"
+                raw_table = f"raw_{table_name}"
+                url = f"{api_base_url}{endpoint}"
 
                 logging.info(
-                    "Extract %s.%s -> %s.%s",
-                    source_db,
-                    source_table,
+                    "Extract API %s -> %s.%s",
+                    url,
                     raw_db,
                     raw_table,
                 )
 
                 # --------------------------------------------
-                # Ambil data dari database sumber
+                # Fetch data dari API
                 # --------------------------------------------
 
-                source_cursor.execute(
-                    f"SELECT * FROM `{source_db}`.`{source_table}`"
-                )
+                response = requests.get(url, timeout=120)
+                response.raise_for_status()
 
-                columns = [
-                    desc[0] for desc in source_cursor.description
-                ]
-                rows = source_cursor.fetchall()
+                payload = response.json()
 
-                if not rows:
+                if isinstance(payload, list):
+                    records = payload
+                elif isinstance(payload, dict):
+                    records = (
+                        payload.get("data")
+                        or payload.get("results")
+                        or [payload]
+                    )
+                else:
+                    records = []
+
+                if not records:
                     logging.warning(
                         "Tidak ada data dari %s, skip.",
-                        source_table,
+                        endpoint,
                     )
                     continue
 
                 # --------------------------------------------
-                # Drop & buat raw table
+                # Drop & buat raw table sesuai kolom API
                 # --------------------------------------------
 
-                raw_cursor.execute(
-                    f"DROP TABLE IF EXISTS `{raw_db}`.`{raw_table}`"
+                columns = list(records[0].keys())
+
+                cursor.execute(
+                    f"DROP TABLE IF EXISTS "
+                    f"`{raw_db}`.`{raw_table}`"
                 )
 
                 col_defs = ", ".join(
-                    f"`{col}` VARCHAR(500)" for col in columns
+                    f"`{col}` VARCHAR(500)"
+                    for col in columns
                 )
 
-                raw_cursor.execute(
+                cursor.execute(
                     f"""
                     CREATE TABLE `{raw_db}`.`{raw_table}`
                     (
@@ -118,10 +126,12 @@ def create_pendidikan_tasks(
                 )
 
                 # --------------------------------------------
-                # Insert data ke raw
+                # Insert data
                 # --------------------------------------------
 
-                col_list = ", ".join(f"`{c}`" for c in columns)
+                col_list = ", ".join(
+                    f"`{c}`" for c in columns
+                )
 
                 now_str = (
                     pendulum
@@ -130,47 +140,57 @@ def create_pendidikan_tasks(
                 )
 
                 batch_size = 1000
+                total = 0
 
-                for i in range(0, len(rows), batch_size):
-                    batch = rows[i : i + batch_size]
+                for i in range(0, len(records), batch_size):
+                    batch = records[i : i + batch_size]
 
-                    placeholders = ", ".join(["%s"] * len(columns))
-
-                    sql_insert = (
-                        f"INSERT INTO `{raw_db}`.`{raw_table}` "
-                        f"({col_list}, `sumber_database`, `waktu_ekstraksi`) "
-                        f"VALUES ({placeholders}, %s, %s)"
+                    placeholders = ", ".join(
+                        ["%s"] * len(columns)
                     )
 
-                    batch_rows = []
-                    for row in batch:
-                        row_values = [
-                            str(val) if val is not None else None
-                            for val in row
-                        ]
-                        row_values.append(source_db)
-                        row_values.append(now_str)
-                        batch_rows.append(row_values)
+                    sql_insert = (
+                        f"INSERT INTO "
+                        f"`{raw_db}`.`{raw_table}` "
+                        f"({col_list}, "
+                        f"`sumber_database`, "
+                        f"`waktu_ekstraksi`) "
+                        f"VALUES "
+                        f"({placeholders}, %s, %s)"
+                    )
 
-                    raw_cursor.executemany(sql_insert, batch_rows)
+                    rows = []
+                    for rec in batch:
+                        row = [
+                            (
+                                str(rec[c])
+                                if rec.get(c) is not None
+                                else None
+                            )
+                            for c in columns
+                        ]
+                        row.append(api_base_url)
+                        row.append(now_str)
+                        rows.append(row)
+
+                    cursor.executemany(sql_insert, rows)
+                    total += len(rows)
 
                 logging.info(
                     "Extract %s selesai. %d records.",
-                    raw_name,
-                    len(rows),
+                    table_name,
+                    total,
                 )
 
-            raw_conn.commit()
+            conn.commit()
 
         except Exception:
-            raw_conn.rollback()
+            conn.rollback()
             raise
 
         finally:
-            source_cursor.close()
-            source_conn.close()
-            raw_cursor.close()
-            raw_conn.close()
+            cursor.close()
+            conn.close()
 
     # ========================================================
     # TASK: TRANSFORM RAW_DATA -> STAGING_AREA

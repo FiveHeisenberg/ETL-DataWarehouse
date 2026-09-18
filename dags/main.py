@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import inspect
 import logging
 
 import pendulum
@@ -219,7 +220,17 @@ def etl_dukcapil_to_dwh():
             "api_base_url": source["api_base_url"],
         }
 
-        current_task = source["create_tasks"](**source_kwargs)
+        sig_params = inspect.signature(
+            source["create_tasks"]
+        ).parameters
+
+        filtered_kwargs = {
+            k: v
+            for k, v in source_kwargs.items()
+            if k in sig_params
+        }
+
+        current_task = source["create_tasks"](**filtered_kwargs)
 
         prev_task >> current_task
         prev_task = current_task
