@@ -31,6 +31,7 @@ DWH_DB = "dwh"
 from dukcapil import create_dukcapil_tasks
 from disnaker import create_disnaker_tasks
 from dispenda import create_dispenda_tasks
+from pendidikan import create_pendidikan_tasks
 
 PIPELINE_TASKS = [
     {
@@ -48,6 +49,19 @@ PIPELINE_TASKS = [
         "create_tasks": create_dispenda_tasks,
         "api_base_url": "http://192.168.222.154:8000/api",
     },
+    
+    {
+        "name": "pendidikan",
+        "create_tasks": create_pendidikan_tasks,
+        "api_base_url": "http://192.168.222.180:5000/api",
+    },
+        
+    # Contoh source baru dengan IP berbeda:
+    # {
+    #     "name": "kependudukan",
+    #     "create_tasks": create_kependudukan_tasks,
+    #     "api_base_url": "http://10.0.0.35:8080/api",
+    # },
 ]
 
 # ============================================================
