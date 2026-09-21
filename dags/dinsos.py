@@ -101,6 +101,7 @@ def create_dinsos_tasks(
                     f"""
                     CREATE TABLE `{raw_db}`.`{raw_table}`
                     (
+                        id BIGINT NOT NULL AUTO_INCREMENT PRIMARY KEY,
                         {col_defs},
                         `sumber_database` VARCHAR(255),
                         `waktu_ekstraksi` DATETIME
@@ -206,7 +207,10 @@ def create_dinsos_tasks(
 
             f"""
             CREATE TABLE
-            `{staging_db}`.`stg_dinsos_wilayah` AS
+            `{staging_db}`.`stg_dinsos_wilayah`
+            (
+                id BIGINT NOT NULL AUTO_INCREMENT PRIMARY KEY
+            ) AS
 
             SELECT DISTINCT
                 TRIM(id_wilayah) AS id_wilayah,
@@ -236,7 +240,10 @@ def create_dinsos_tasks(
 
             f"""
             CREATE TABLE
-            `{staging_db}`.`stg_dinsos_program_bansos` AS
+            `{staging_db}`.`stg_dinsos_program_bansos`
+            (
+                id BIGINT NOT NULL AUTO_INCREMENT PRIMARY KEY
+            ) AS
 
             SELECT DISTINCT
                 CAST(TRIM(id_program) AS UNSIGNED)
@@ -280,7 +287,10 @@ def create_dinsos_tasks(
 
             f"""
             CREATE TABLE
-            `{staging_db}`.`stg_dinsos_penduduk` AS
+            `{staging_db}`.`stg_dinsos_penduduk`
+            (
+                id BIGINT NOT NULL AUTO_INCREMENT PRIMARY KEY
+            ) AS
 
             SELECT DISTINCT
 
@@ -388,7 +398,10 @@ def create_dinsos_tasks(
 
             f"""
             CREATE TABLE
-            `{staging_db}`.`stg_dinsos_penyaluran_bansos` AS
+            `{staging_db}`.`stg_dinsos_penyaluran_bansos`
+            (
+                id BIGINT NOT NULL AUTO_INCREMENT PRIMARY KEY
+            ) AS
 
             SELECT DISTINCT
 
@@ -463,7 +476,10 @@ def create_dinsos_tasks(
 
             f"""
             CREATE TABLE
-            `{staging_db}`.`stg_dinsos_ppks` AS
+            `{staging_db}`.`stg_dinsos_ppks`
+            (
+                id BIGINT NOT NULL AUTO_INCREMENT PRIMARY KEY
+            ) AS
 
             SELECT DISTINCT
 
@@ -520,7 +536,10 @@ def create_dinsos_tasks(
 
             f"""
             CREATE TABLE
-            `{staging_db}`.`stg_dinsos_psks` AS
+            `{staging_db}`.`stg_dinsos_psks`
+            (
+                id BIGINT NOT NULL AUTO_INCREMENT PRIMARY KEY
+            ) AS
 
             SELECT DISTINCT
 
@@ -562,7 +581,10 @@ def create_dinsos_tasks(
 
             f"""
             CREATE TABLE
-            `{staging_db}`.`stg_dinsos_rumah_tangga` AS
+            `{staging_db}`.`stg_dinsos_rumah_tangga`
+            (
+                id BIGINT NOT NULL AUTO_INCREMENT PRIMARY KEY
+            ) AS
 
             SELECT DISTINCT
 

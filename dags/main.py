@@ -43,8 +43,8 @@ PIPELINE_TASKS = [
     {
         "name": "disnaker",
         "create_tasks": create_disnaker_tasks,
-        "api_base_url": "http://192.168.222.71:8000/api",
-    },
+        "api_base_url": "http://192.168.222.122:8000/api",
+    },  
     {
         "name": "dispenda",
         "create_tasks": create_dispenda_tasks,
@@ -132,11 +132,7 @@ def etl_dukcapil_to_dwh():
         sql = f"""
         CREATE DATABASE IF NOT EXISTS `{RAW_DB}`
         CHARACTER SET utf8mb4
-<<<<<<< HEAD
         COLLATE utf8mb4_0900_ai_ci;
-=======
-        COLLATE utf8mb4_general_ci;
->>>>>>> origin/etl/dinsos
         """
 
         execute_sql([sql])
@@ -158,11 +154,7 @@ def etl_dukcapil_to_dwh():
         sql = f"""
         CREATE DATABASE IF NOT EXISTS `{STAGING_DB}`
         CHARACTER SET utf8mb4
-<<<<<<< HEAD
         COLLATE utf8mb4_0900_ai_ci;
-=======
-        COLLATE utf8mb4_general_ci;
->>>>>>> origin/etl/dinsos
         """
 
         execute_sql([sql])
@@ -184,11 +176,7 @@ def etl_dukcapil_to_dwh():
         sql = f"""
         CREATE DATABASE IF NOT EXISTS `{DWH_DB}`
         CHARACTER SET utf8mb4
-<<<<<<< HEAD
         COLLATE utf8mb4_0900_ai_ci;
-=======
-        COLLATE utf8mb4_general_ci;
->>>>>>> origin/etl/dinsos
         """
 
         execute_sql([sql])
@@ -238,7 +226,6 @@ def etl_dukcapil_to_dwh():
             "api_base_url": source["api_base_url"],
         }
 
-<<<<<<< HEAD
         sig_params = inspect.signature(
             source["create_tasks"]
         ).parameters
@@ -249,17 +236,10 @@ def etl_dukcapil_to_dwh():
             if k in sig_params
         }
 
-        current_task = source["create_tasks"](**filtered_kwargs)
-=======
         current_task = source["create_tasks"](**source_kwargs)
->>>>>>> origin/etl/dinsos
 
         prev_task >> current_task
         prev_task = current_task
 
 
-<<<<<<< HEAD
 etl_dukcapil_to_dwh()
-=======
-etl_dukcapil_to_dwh()
->>>>>>> origin/etl/dinsos

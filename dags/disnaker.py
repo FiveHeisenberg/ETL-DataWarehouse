@@ -137,6 +137,7 @@ def create_disnaker_tasks(
                     f"""
                     CREATE TABLE `{raw_db}`.`{raw_table}`
                     (
+                        id BIGINT NOT NULL AUTO_INCREMENT PRIMARY KEY,
                         {col_defs},
                         `sumber_database` VARCHAR(100),
                         `waktu_ekstraksi` DATETIME
@@ -238,7 +239,10 @@ def create_disnaker_tasks(
             """,
 
             f"""
-            CREATE TABLE `{staging_db}`.`stg_kasus_hi` AS
+            CREATE TABLE `{staging_db}`.`stg_kasus_hi`
+            (
+                id BIGINT NOT NULL AUTO_INCREMENT PRIMARY KEY
+            ) AS
 
             SELECT DISTINCT
 
@@ -315,7 +319,10 @@ def create_disnaker_tasks(
             """,
 
             f"""
-            CREATE TABLE `{staging_db}`.`stg_lowongan` AS
+            CREATE TABLE `{staging_db}`.`stg_lowongan`
+            (
+                id BIGINT NOT NULL AUTO_INCREMENT PRIMARY KEY
+            ) AS
 
             SELECT DISTINCT
 
@@ -380,7 +387,10 @@ def create_disnaker_tasks(
             """,
 
             f"""
-            CREATE TABLE `{staging_db}`.`stg_pelatihan_blk` AS
+            CREATE TABLE `{staging_db}`.`stg_pelatihan_blk`
+            (
+                id BIGINT NOT NULL AUTO_INCREMENT PRIMARY KEY
+            ) AS
 
             SELECT DISTINCT
 
@@ -433,7 +443,10 @@ def create_disnaker_tasks(
             """,
 
             f"""
-            CREATE TABLE `{staging_db}`.`stg_penduduk_pencaker` AS
+            CREATE TABLE `{staging_db}`.`stg_penduduk_pencaker`
+            (
+                id BIGINT NOT NULL AUTO_INCREMENT PRIMARY KEY
+            ) AS
 
             SELECT DISTINCT
 
@@ -506,7 +519,10 @@ def create_disnaker_tasks(
             """,
 
             f"""
-            CREATE TABLE `{staging_db}`.`stg_penempatan` AS
+            CREATE TABLE `{staging_db}`.`stg_penempatan`
+            (
+                id BIGINT NOT NULL AUTO_INCREMENT PRIMARY KEY
+            ) AS
 
             SELECT DISTINCT
 
@@ -567,7 +583,10 @@ def create_disnaker_tasks(
             """,
 
             f"""
-            CREATE TABLE `{staging_db}`.`stg_perusahaan` AS
+            CREATE TABLE `{staging_db}`.`stg_perusahaan`
+            (
+                id BIGINT NOT NULL AUTO_INCREMENT PRIMARY KEY
+            ) AS
 
             SELECT DISTINCT
 
@@ -639,7 +658,10 @@ def create_disnaker_tasks(
             """,
 
             f"""
-            CREATE TABLE `{staging_db}`.`stg_peserta_pelatihan` AS
+            CREATE TABLE `{staging_db}`.`stg_peserta_pelatihan`
+            (
+                id BIGINT NOT NULL AUTO_INCREMENT PRIMARY KEY
+            ) AS
 
             SELECT DISTINCT
 

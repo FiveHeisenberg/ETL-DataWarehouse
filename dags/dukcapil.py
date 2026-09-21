@@ -112,6 +112,7 @@ def create_dukcapil_tasks(
                     f"""
                     CREATE TABLE `{raw_db}`.`{raw_table}`
                     (
+                        id BIGINT NOT NULL AUTO_INCREMENT PRIMARY KEY,
                         {col_defs},
                         `sumber_database` VARCHAR(100),
                         `waktu_ekstraksi` DATETIME
@@ -217,7 +218,10 @@ def create_dukcapil_tasks(
             """,
 
             f"""
-            CREATE TABLE `{staging_db}`.`stg_agama` AS
+            CREATE TABLE `{staging_db}`.`stg_agama`
+            (
+                id BIGINT NOT NULL AUTO_INCREMENT PRIMARY KEY
+            ) AS
 
             SELECT DISTINCT
                 TRIM(id_agama) AS id_agama,
@@ -243,7 +247,10 @@ def create_dukcapil_tasks(
             """,
 
             f"""
-            CREATE TABLE `{staging_db}`.`stg_provinsi` AS
+            CREATE TABLE `{staging_db}`.`stg_provinsi`
+            (
+                id BIGINT NOT NULL AUTO_INCREMENT PRIMARY KEY
+            ) AS
 
             SELECT DISTINCT
 
@@ -275,7 +282,10 @@ def create_dukcapil_tasks(
 
             f"""
             CREATE TABLE
-            `{staging_db}`.`stg_kabupaten_kota` AS
+            `{staging_db}`.`stg_kabupaten_kota`
+            (
+                id BIGINT NOT NULL AUTO_INCREMENT PRIMARY KEY
+            ) AS
 
             SELECT DISTINCT
 
@@ -310,7 +320,10 @@ def create_dukcapil_tasks(
 
             f"""
             CREATE TABLE
-            `{staging_db}`.`stg_kecamatan` AS
+            `{staging_db}`.`stg_kecamatan`
+            (
+                id BIGINT NOT NULL AUTO_INCREMENT PRIMARY KEY
+            ) AS
 
             SELECT DISTINCT
 
@@ -345,7 +358,10 @@ def create_dukcapil_tasks(
 
             f"""
             CREATE TABLE
-            `{staging_db}`.`stg_desa` AS
+            `{staging_db}`.`stg_desa`
+            (
+                id BIGINT NOT NULL AUTO_INCREMENT PRIMARY KEY
+            ) AS
 
             SELECT DISTINCT
 
@@ -380,7 +396,10 @@ def create_dukcapil_tasks(
 
             f"""
             CREATE TABLE
-            `{staging_db}`.`stg_alamat` AS
+            `{staging_db}`.`stg_alamat`
+            (
+                id BIGINT NOT NULL AUTO_INCREMENT PRIMARY KEY
+            ) AS
 
             SELECT DISTINCT
 
@@ -420,7 +439,10 @@ def create_dukcapil_tasks(
 
             f"""
             CREATE TABLE
-            `{staging_db}`.`stg_status_perkawinan` AS
+            `{staging_db}`.`stg_status_perkawinan`
+            (
+                id BIGINT NOT NULL AUTO_INCREMENT PRIMARY KEY
+            ) AS
 
             SELECT DISTINCT
 
@@ -451,7 +473,10 @@ def create_dukcapil_tasks(
 
             f"""
             CREATE TABLE
-            `{staging_db}`.`stg_status_penduduk` AS
+            `{staging_db}`.`stg_status_penduduk`
+            (
+                id BIGINT NOT NULL AUTO_INCREMENT PRIMARY KEY
+            ) AS
 
             SELECT DISTINCT
 
@@ -482,7 +507,10 @@ def create_dukcapil_tasks(
 
             f"""
             CREATE TABLE
-            `{staging_db}`.`stg_kartu_keluarga` AS
+            `{staging_db}`.`stg_kartu_keluarga`
+            (
+                id BIGINT NOT NULL AUTO_INCREMENT PRIMARY KEY
+            ) AS
 
             SELECT DISTINCT
 
@@ -541,7 +569,10 @@ def create_dukcapil_tasks(
 
             f"""
             CREATE TABLE
-            `{staging_db}`.`stg_penduduk` AS
+            `{staging_db}`.`stg_penduduk`
+            (
+                id BIGINT NOT NULL AUTO_INCREMENT PRIMARY KEY
+            ) AS
 
             SELECT DISTINCT
 

@@ -107,6 +107,7 @@ def create_dispenda_tasks(
                     f"""
                     CREATE TABLE `{raw_db}`.`{raw_table}`
                     (
+                        id BIGINT NOT NULL AUTO_INCREMENT PRIMARY KEY,
                         {col_defs},
                         `sumber_database` VARCHAR(100),
                         `waktu_ekstraksi` DATETIME
@@ -212,7 +213,10 @@ def create_dispenda_tasks(
             """,
 
             f"""
-            CREATE TABLE `{staging_db}`.`stg_wajib_pajak` AS
+            CREATE TABLE `{staging_db}`.`stg_wajib_pajak`
+            (
+                id BIGINT NOT NULL AUTO_INCREMENT PRIMARY KEY
+            ) AS
 
             SELECT DISTINCT
 
@@ -304,7 +308,10 @@ def create_dispenda_tasks(
             """,
 
             f"""
-            CREATE TABLE `{staging_db}`.`stg_kategori_pajak` AS
+            CREATE TABLE `{staging_db}`.`stg_kategori_pajak`
+            (
+                id BIGINT NOT NULL AUTO_INCREMENT PRIMARY KEY
+            ) AS
 
             SELECT DISTINCT
 
@@ -343,7 +350,10 @@ def create_dispenda_tasks(
             """,
 
             f"""
-            CREATE TABLE `{staging_db}`.`stg_objek_pajak` AS
+            CREATE TABLE `{staging_db}`.`stg_objek_pajak`
+            (
+                id BIGINT NOT NULL AUTO_INCREMENT PRIMARY KEY
+            ) AS
 
             SELECT DISTINCT
 
@@ -409,7 +419,10 @@ def create_dispenda_tasks(
             """,
 
             f"""
-            CREATE TABLE `{staging_db}`.`stg_tagihan` AS
+            CREATE TABLE `{staging_db}`.`stg_tagihan`
+            (
+                id BIGINT NOT NULL AUTO_INCREMENT PRIMARY KEY
+            ) AS
 
             SELECT DISTINCT
 
@@ -471,7 +484,10 @@ def create_dispenda_tasks(
             """,
 
             f"""
-            CREATE TABLE `{staging_db}`.`stg_pembayaran` AS
+            CREATE TABLE `{staging_db}`.`stg_pembayaran`
+            (
+                id BIGINT NOT NULL AUTO_INCREMENT PRIMARY KEY
+            ) AS
 
             SELECT DISTINCT
 

@@ -14,12 +14,12 @@ from airflow.sdk import task
 # Sesuai skema db_pendidikan:
 # tb_waktu, tb_sekolah, tb_ptk, tb_siswa, tb_sarana, tb_pendidikan
 SOURCE_ENDPOINTS = {
-    "tb_waktu":      "/waktu",
-    "tb_sekolah":    "/sekolah",
-    "tb_ptk":        "/ptk",
-    "tb_siswa":      "/siswa",
-    "tb_sarana":     "/sarana",
-    "tb_pendidikan": "/pendidikan",
+    "tb_waktu":      "/extraction/waktu",
+    "tb_sekolah":    "/extraction/sekolah",
+    "tb_ptk":        "/extraction/ptk",
+    "tb_siswa":      "/extraction/siswa",
+    "tb_sarana":     "/extraction/sarana",
+    "tb_pendidikan": "/extraction/pendidikan",
 }
 
 
@@ -116,6 +116,7 @@ def create_pendidikan_tasks(
                     f"""
                     CREATE TABLE `{raw_db}`.`{raw_table}`
                     (
+                        id BIGINT NOT NULL AUTO_INCREMENT PRIMARY KEY,
                         {col_defs},
                         `sumber_database` VARCHAR(100),
                         `waktu_ekstraksi` DATETIME
@@ -219,7 +220,10 @@ def create_pendidikan_tasks(
             """,
 
             f"""
-            CREATE TABLE `{staging_db}`.`stg_waktu` AS
+            CREATE TABLE `{staging_db}`.`stg_waktu`
+            (
+                id BIGINT NOT NULL AUTO_INCREMENT PRIMARY KEY
+            ) AS
 
             SELECT DISTINCT
                 CAST(id_waktu AS UNSIGNED) AS id_waktu,
@@ -269,7 +273,10 @@ def create_pendidikan_tasks(
             """,
 
             f"""
-            CREATE TABLE `{staging_db}`.`stg_sekolah` AS
+            CREATE TABLE `{staging_db}`.`stg_sekolah`
+            (
+                id BIGINT NOT NULL AUTO_INCREMENT PRIMARY KEY
+            ) AS
 
             SELECT DISTINCT
                 TRIM(id_sekolah) AS id_sekolah,
@@ -333,7 +340,10 @@ def create_pendidikan_tasks(
             """,
 
             f"""
-            CREATE TABLE `{staging_db}`.`stg_ptk` AS
+            CREATE TABLE `{staging_db}`.`stg_ptk`
+            (
+                id BIGINT NOT NULL AUTO_INCREMENT PRIMARY KEY
+            ) AS
 
             SELECT DISTINCT
                 TRIM(id_ptk) AS id_ptk,
@@ -403,7 +413,10 @@ def create_pendidikan_tasks(
             """,
 
             f"""
-            CREATE TABLE `{staging_db}`.`stg_siswa` AS
+            CREATE TABLE `{staging_db}`.`stg_siswa`
+            (
+                id BIGINT NOT NULL AUTO_INCREMENT PRIMARY KEY
+            ) AS
 
             SELECT DISTINCT
 
@@ -478,7 +491,10 @@ def create_pendidikan_tasks(
             """,
 
             f"""
-            CREATE TABLE `{staging_db}`.`stg_sarana` AS
+            CREATE TABLE `{staging_db}`.`stg_sarana`
+            (
+                id BIGINT NOT NULL AUTO_INCREMENT PRIMARY KEY
+            ) AS
 
             SELECT DISTINCT
                 CAST(id_sarana AS UNSIGNED) AS id_sarana,
@@ -520,7 +536,10 @@ def create_pendidikan_tasks(
             """,
 
             f"""
-            CREATE TABLE `{staging_db}`.`stg_pendidikan` AS
+            CREATE TABLE `{staging_db}`.`stg_pendidikan`
+            (
+                id BIGINT NOT NULL AUTO_INCREMENT PRIMARY KEY
+            ) AS
 
             SELECT DISTINCT
                 CAST(id_pendidikan AS UNSIGNED) AS id_pendidikan,
