@@ -484,10 +484,137 @@ def create_pendidikan_tasks(
     # Cuma sampai staging dulu sesuai arahan -> load_to_dwh
     # menyusul belakangan setelah semua source aman di staging.
     # ========================================================
+    
+        # ========================================================
+    # TASK: LOAD STAGING -> DATA WAREHOUSE
+    # ========================================================
 
+    @task
+    def load_to_dwh():
+
+        logging.info("Memulai proses load ke Data Warehouse...")
+
+        transformations = [
+
+            # =================================================
+            # DIM WAKTU
+            # =================================================
+
+            f"""
+            DROP TABLE IF EXISTS
+            `{dwh_db}`.`dim_waktu`;
+            """,
+
+            f"""
+            CREATE TABLE `{dwh_db}`.`dim_waktu` AS
+
+            SELECT
+                id_waktu,
+                tahun,
+                semester,
+                tanggal_mulai,
+                tanggal_selesai,
+                status_periode
+            FROM `{staging_db}`.`stg_waktu`;
+            """,
+
+            # =================================================
+            # DIM SEKOLAH
+            # =================================================
+
+            f"""
+            DROP TABLE IF EXISTS
+            `{dwh_db}`.`dim_sekolah`;
+            """,
+
+            f"""
+            CREATE TABLE `{dwh_db}`.`dim_sekolah` AS
+
+            SELECT
+                id_sekolah,
+                npsn,
+                nama_sekolah,
+                jenjang,
+                status_sekolah,
+                akreditasi,
+                id_desa,
+                alamat_sekolah,
+                status_operasional,
+                tahun_berdiri
+            FROM `{staging_db}`.`stg_sekolah`;
+            """,
+
+            # =================================================
+            # DIM PTK
+            # =================================================
+
+            f"""
+            DROP TABLE IF EXISTS
+            `{dwh_db}`.`dim_ptk`;
+            """,
+
+            f"""
+            CREATE TABLE `{dwh_db}`.`dim_ptk` AS
+
+            SELECT
+                id_ptk,
+                nik,
+                nuptk,
+                nama_ptk,
+                jenis_kelamin,
+                id_sekolah,
+                jenis_ptk,
+                status_kepegawaian,
+                pendidikan_terakhir,
+                bidang_studi,
+                jabatan,
+                tahun_masuk,
+                status_ptk
+            FROM `{staging_db}`.`stg_ptk`;
+            """,
+
+            # =================================================
+            # FACT PENDIDIKAN
+            # =================================================
+
+            f"""
+            DROP TABLE IF EXISTS
+            `{dwh_db}`.`fact_pendidikan`;
+            """,
+
+            f"""
+            CREATE TABLE `{dwh_db}`.`fact_pendidikan` AS
+
+            SELECT
+                id_pendidikan,
+                id_sekolah,
+                id_waktu,
+                jumlah_siswa,
+                jumlah_guru,
+                jumlah_rombel,
+                jumlah_mapel,
+                jumlah_jam_pembelajaran,
+                rata_rata_nilai,
+                persentase_kelulusan,
+                jumlah_lulus,
+                jumlah_mengulang,
+                jumlah_putus_sekolah
+            FROM `{staging_db}`.`stg_pendidikan`;
+            """,
+
+        ]
+
+        execute_sql(transformations)
+
+        logging.info(
+            "Load Data Warehouse Pendidikan selesai."
+        )
     t1 = extract_to_raw()
     t2 = transform_staging()
+    t3 = load_to_dwh()
 
-    t1 >> t2
+    t1 >> t2 >> t3
+
+
 
     return t2
