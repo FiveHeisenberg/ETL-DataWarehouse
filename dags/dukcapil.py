@@ -50,6 +50,22 @@ def create_dukcapil_tasks(
         conn = hook.get_conn()
         cursor = conn.cursor()
 
+        # Daftar kolom yang memerlukan standarisasi kapitalisasi (Title Case)
+        # Menangkap nama, alamat, tempat lahir, dan entitas wilayah/status lainnya
+        title_case_columns = {
+            "nama_lengkap",
+            "nama_agama",
+            "nama_provinsi",
+            "nama_kabupaten_kota",
+            "nama_kecamatan",
+            "nama_desa",
+            "jalan",
+            "tempat_lahir",
+            "status_perkawinan",
+            "status_penduduk",
+            "kewarganegaraan",
+        }
+
         try:
 
             for table_name, endpoint in SOURCE_ENDPOINTS.items():
@@ -123,7 +139,7 @@ def create_dukcapil_tasks(
                 )
 
                 # --------------------------------------------
-                # Insert data
+                # Insert data dengan standarisasi teks
                 # --------------------------------------------
 
                 col_list = ", ".join(
@@ -158,14 +174,20 @@ def create_dukcapil_tasks(
 
                     rows = []
                     for rec in batch:
-                        row = [
-                            (
-                                str(rec[c])
-                                if rec.get(c) is not None
-                                else None
-                            )
-                            for c in columns
-                        ]
+                        row = []
+                        for c in columns:
+                            val = rec.get(c)
+                            if val is not None:
+                                val_str = str(val).strip()
+                                
+                                # TERAPKAN TITLE CASE (Kapital di awal setiap kata)
+                                if c in title_case_columns and val_str:
+                                    val_str = val_str.title()
+                                
+                                row.append(val_str)
+                            else:
+                                row.append(None)
+                        
                         row.append(api_base_url)
                         row.append(now_str)
                         rows.append(row)
