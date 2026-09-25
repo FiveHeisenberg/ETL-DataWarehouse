@@ -593,4 +593,4 @@ def create_pendidikan_tasks(
 
     t1 >> t2
 
-    return t2
+    return t1

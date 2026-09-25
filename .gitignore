@@ -21,5 +21,8 @@ airflow.db
 # AI Agent Configuration (Local Only)
 AGENTS.md
 opencode.json
+MEMORY.md
+PANDUAN.md
+
 =======
 >>>>>>> origin/etl/dinsos

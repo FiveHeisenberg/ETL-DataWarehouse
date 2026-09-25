@@ -191,33 +191,64 @@ def create_dispenda_tasks(
     @task(task_id="transform_staging_dispenda")
     def transform_staging():
 
-        logging.info(
-            "Memulai proses transform..."
-        )
+        hook = get_mysql_hook()
+        conn = hook.get_conn()
+        cursor = conn.cursor()
 
-        align_collation = f"""
-        ALTER DATABASE `{staging_db}`
-        CHARACTER SET utf8mb4
-        COLLATE utf8mb4_0900_ai_ci;
-        """
+        try:
 
-        transformations = [
+            logging.info(
+                "Memulai proses transform..."
+            )
+
+            # --------------------------------------------
+            # ALIGN COLLATION
+            # --------------------------------------------
+
+            cursor.execute(f"""
+            ALTER DATABASE `{staging_db}`
+            CHARACTER SET utf8mb4
+            COLLATE utf8mb4_0900_ai_ci;
+            """)
+            conn.commit()
 
             # =================================================
             # WAJIB PAJAK
             # =================================================
 
-            f"""
+            logging.info("Transform: stg_wajib_pajak ...")
+
+            cursor.execute(f"""
             DROP TABLE IF EXISTS
             `{staging_db}`.`stg_wajib_pajak`;
-            """,
+            """)
 
-            f"""
+            cursor.execute(f"""
             CREATE TABLE `{staging_db}`.`stg_wajib_pajak`
             (
-                id BIGINT NOT NULL AUTO_INCREMENT PRIMARY KEY
-            ) AS
+                id              BIGINT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+                nik_wp          VARCHAR(20),
+                nama_lengkap    VARCHAR(200),
+                jenis_kelamin   CHAR(1),
+                alamat          VARCHAR(500),
+                id_kabupaten_kota VARCHAR(10),
+                npwpd           VARCHAR(30),
+                tanggal_daftar  DATE,
+                sumber_database VARCHAR(100),
+                waktu_ekstraksi DATETIME
+            )
+            ENGINE=InnoDB
+            DEFAULT CHARSET=utf8mb4
+            COLLATE=utf8mb4_0900_ai_ci;
+            """)
 
+            cursor.execute(f"""
+            INSERT INTO `{staging_db}`.`stg_wajib_pajak`
+            (
+                nik_wp, nama_lengkap, jenis_kelamin,
+                alamat, id_kabupaten_kota, npwpd,
+                tanggal_daftar, sumber_database, waktu_ekstraksi
+            )
             SELECT DISTINCT
 
                 REGEXP_REPLACE(
@@ -266,21 +297,20 @@ def create_dispenda_tasks(
             FROM `{raw_db}`.`raw_tb_wajib_pajak` wp
 
             LEFT JOIN `{staging_db}`.`stg_kabupaten_kota` kab
-                ON UPPER(TRIM(kab.nama_kabupaten_kota)) = 
+                ON UPPER(TRIM(kab.nama_kabupaten_kota)) =
                    UPPER(TRIM(
                        CASE
                            WHEN UPPER(TRIM(wp.kabupaten_kota)) = 'BANDA ACEH'
                            THEN 'Kota Banda Aceh'
-                           
+
                            WHEN UPPER(TRIM(wp.kabupaten_kota)) = 'LHOKSEUMAWE'
                            THEN 'Kota Lhokseumawe'
-                           
+
                            ELSE CONCAT('Kota ', wp.kabupaten_kota)
                        END
                    ))
 
             WHERE
-                -- Validasi NIK 16 digit
                 CHAR_LENGTH(
                     REGEXP_REPLACE(
                         wp.nik_wp,
@@ -289,30 +319,50 @@ def create_dispenda_tasks(
                     )
                 ) = 16
 
-                -- Nama tidak boleh kosong
                 AND wp.nama_lengkap IS NOT NULL
                 AND TRIM(wp.nama_lengkap) <> ''
 
-                -- Jenis kelamin valid
                 AND UPPER(TRIM(wp.jenis_kelamin))
                     IN ('PRIA', 'L', 'LAKI-LAKI', 'WANITA', 'P', 'PEREMPUAN');
-            """,
+            """)
+            conn.commit()
+
+            logging.info(
+                "Transform: stg_wajib_pajak selesai."
+            )
 
             # =================================================
             # KATEGORI PAJAK
             # =================================================
 
-            f"""
+            logging.info("Transform: stg_kategori_pajak ...")
+
+            cursor.execute(f"""
             DROP TABLE IF EXISTS
             `{staging_db}`.`stg_kategori_pajak`;
-            """,
+            """)
 
-            f"""
+            cursor.execute(f"""
             CREATE TABLE `{staging_db}`.`stg_kategori_pajak`
             (
-                id BIGINT NOT NULL AUTO_INCREMENT PRIMARY KEY
-            ) AS
+                id                BIGINT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+                id_kategori       VARCHAR(10),
+                nama_pajak        VARCHAR(100),
+                tarif_persentase  DECIMAL(5,2),
+                sumber_database   VARCHAR(100),
+                waktu_ekstraksi   DATETIME
+            )
+            ENGINE=InnoDB
+            DEFAULT CHARSET=utf8mb4
+            COLLATE=utf8mb4_0900_ai_ci;
+            """)
 
+            cursor.execute(f"""
+            INSERT INTO `{staging_db}`.`stg_kategori_pajak`
+            (
+                id_kategori, nama_pajak, tarif_persentase,
+                sumber_database, waktu_ekstraksi
+            )
             SELECT DISTINCT
 
                 TRIM(id_kategori)
@@ -338,23 +388,49 @@ def create_dispenda_tasks(
                 AND TRIM(nama_pajak) <> ''
                 AND tarif_persentase IS NOT NULL
                 AND CAST(tarif_persentase AS DECIMAL(5,2)) >= 0;
-            """,
+            """)
+            conn.commit()
+
+            logging.info(
+                "Transform: stg_kategori_pajak selesai."
+            )
 
             # =================================================
             # OBJEK PAJAK
             # =================================================
 
-            f"""
+            logging.info("Transform: stg_objek_pajak ...")
+
+            cursor.execute(f"""
             DROP TABLE IF EXISTS
             `{staging_db}`.`stg_objek_pajak`;
-            """,
+            """)
 
-            f"""
+            cursor.execute(f"""
             CREATE TABLE `{staging_db}`.`stg_objek_pajak`
             (
-                id BIGINT NOT NULL AUTO_INCREMENT PRIMARY KEY
-            ) AS
+                id                    BIGINT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+                id_objek              VARCHAR(20),
+                nik_wp                VARCHAR(20),
+                id_kategori           VARCHAR(10),
+                nomor_identitas_aset  VARCHAR(50),
+                rincian_objek         VARCHAR(200),
+                nilai_aset            BIGINT UNSIGNED,
+                sumber_database       VARCHAR(100),
+                waktu_ekstraksi       DATETIME
+            )
+            ENGINE=InnoDB
+            DEFAULT CHARSET=utf8mb4
+            COLLATE=utf8mb4_0900_ai_ci;
+            """)
 
+            cursor.execute(f"""
+            INSERT INTO `{staging_db}`.`stg_objek_pajak`
+            (
+                id_objek, nik_wp, id_kategori,
+                nomor_identitas_aset, rincian_objek, nilai_aset,
+                sumber_database, waktu_ekstraksi
+            )
             SELECT DISTINCT
 
                 TRIM(id_objek)
@@ -393,7 +469,6 @@ def create_dispenda_tasks(
                 AND id_kategori IS NOT NULL
                 AND TRIM(id_kategori) <> ''
 
-                -- Validasi NIK 16 digit
                 AND CHAR_LENGTH(
                     REGEXP_REPLACE(
                         nik_wp,
@@ -407,23 +482,49 @@ def create_dispenda_tasks(
 
                 AND nilai_aset IS NOT NULL
                 AND CAST(nilai_aset AS UNSIGNED) > 0;
-            """,
+            """)
+            conn.commit()
+
+            logging.info(
+                "Transform: stg_objek_pajak selesai."
+            )
 
             # =================================================
             # TAGIHAN
             # =================================================
 
-            f"""
+            logging.info("Transform: stg_tagihan ...")
+
+            cursor.execute(f"""
             DROP TABLE IF EXISTS
             `{staging_db}`.`stg_tagihan`;
-            """,
+            """)
 
-            f"""
+            cursor.execute(f"""
             CREATE TABLE `{staging_db}`.`stg_tagihan`
             (
-                id BIGINT NOT NULL AUTO_INCREMENT PRIMARY KEY
-            ) AS
+                id                  BIGINT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+                id_tagihan          VARCHAR(20),
+                id_objek            VARCHAR(20),
+                tahun_pajak         VARCHAR(4),
+                nominal_tagihan     BIGINT UNSIGNED,
+                tanggal_jatuh_tempo DATE,
+                status_tagihan      VARCHAR(20),
+                sumber_database     VARCHAR(100),
+                waktu_ekstraksi     DATETIME
+            )
+            ENGINE=InnoDB
+            DEFAULT CHARSET=utf8mb4
+            COLLATE=utf8mb4_0900_ai_ci;
+            """)
 
+            cursor.execute(f"""
+            INSERT INTO `{staging_db}`.`stg_tagihan`
+            (
+                id_tagihan, id_objek, tahun_pajak,
+                nominal_tagihan, tanggal_jatuh_tempo, status_tagihan,
+                sumber_database, waktu_ekstraksi
+            )
             SELECT DISTINCT
 
                 TRIM(id_tagihan)
@@ -472,23 +573,49 @@ def create_dispenda_tasks(
                 AND TRIM(tahun_pajak) <> ''
                 AND nominal_tagihan IS NOT NULL
                 AND CAST(nominal_tagihan AS UNSIGNED) >= 0;
-            """,
+            """)
+            conn.commit()
+
+            logging.info(
+                "Transform: stg_tagihan selesai."
+            )
 
             # =================================================
             # PEMBAYARAN
             # =================================================
 
-            f"""
+            logging.info("Transform: stg_pembayaran ...")
+
+            cursor.execute(f"""
             DROP TABLE IF EXISTS
             `{staging_db}`.`stg_pembayaran`;
-            """,
+            """)
 
-            f"""
+            cursor.execute(f"""
             CREATE TABLE `{staging_db}`.`stg_pembayaran`
             (
-                id BIGINT NOT NULL AUTO_INCREMENT PRIMARY KEY
-            ) AS
+                id                      BIGINT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+                id_pembayaran           VARCHAR(20),
+                id_tagihan              VARCHAR(20),
+                tanggal_bayar           DATE,
+                jumlah_bayar            BIGINT UNSIGNED,
+                denda_keterlambatan     BIGINT UNSIGNED,
+                metode_bayar            VARCHAR(50),
+                sumber_database         VARCHAR(100),
+                waktu_ekstraksi         DATETIME
+            )
+            ENGINE=InnoDB
+            DEFAULT CHARSET=utf8mb4
+            COLLATE=utf8mb4_0900_ai_ci;
+            """)
 
+            cursor.execute(f"""
+            INSERT INTO `{staging_db}`.`stg_pembayaran`
+            (
+                id_pembayaran, id_tagihan, tanggal_bayar,
+                jumlah_bayar, denda_keterlambatan, metode_bayar,
+                sumber_database, waktu_ekstraksi
+            )
             SELECT DISTINCT
 
                 TRIM(id_pembayaran)
@@ -532,16 +659,29 @@ def create_dispenda_tasks(
                 AND tanggal_bayar IS NOT NULL
                 AND jumlah_bayar IS NOT NULL
                 AND CAST(jumlah_bayar AS UNSIGNED) > 0;
-            """,
-        ]
+            """)
+            conn.commit()
 
-        execute_sql(
-            [align_collation] + transformations
-        )
+            logging.info(
+                "Transform: stg_pembayaran selesai."
+            )
 
-        logging.info(
-            "Transform staging selesai."
-        )
+            logging.info(
+                "Transform staging selesai."
+            )
+
+        except Exception as e:
+            conn.rollback()
+            logging.error(
+                "ERROR transform_staging_dispenda: %s | Query: %s",
+                str(e),
+                cursor._last_executed if hasattr(cursor, "_last_executed") else "N/A",
+            )
+            raise
+
+        finally:
+            cursor.close()
+            conn.close()
 
     # ========================================================
     # TASK: LOAD -> DATA WAREHOUSE
@@ -1325,13 +1465,15 @@ def create_dispenda_tasks(
         )
 
     # ========================================================
-    # WIRING
+    # WIRING (PARALEL - DICT)
     # ========================================================
 
-    t1 = extract_to_raw()
-    t2 = transform_staging()
-    t3 = load_to_dwh()
+    t_extract = extract_to_raw()
+    t_transform = transform_staging()
+    t_load = load_to_dwh()
 
-    t1 >> t2 >> t3
-
-    return t3
+    return {
+        "extract_to_raw": t_extract,
+        "transform_staging": t_transform,
+        "load_to_dwh": t_load,
+    }

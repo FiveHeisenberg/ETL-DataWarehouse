@@ -742,4 +742,4 @@ def create_disnaker_tasks(
 
     t1 >> t2
 
-    return t2
+    return t1

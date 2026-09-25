@@ -35,32 +35,32 @@ from pendidikan import create_pendidikan_tasks
 from dinsos import create_dinsos_tasks
 
 PIPELINE_TASKS = [
-    {
-        "name": "dukcapil",
-        "create_tasks": create_dukcapil_tasks,
-        "api_base_url": "http://192.168.222.152:8000/api",
-    },
-    {
-        "name": "disnaker",
-        "create_tasks": create_disnaker_tasks,
-        "api_base_url": "http://192.168.222.122:8000/api",
-    },  
+    # {
+    #     "name": "dukcapil",
+    #     "create_tasks": create_dukcapil_tasks,
+    #     "api_base_url": "http://192.168.222.152:8000/api",
+    # },
+    # {
+    #     "name": "disnaker",
+    #     "create_tasks": create_disnaker_tasks,
+    #     "api_base_url": "http://192.168.222.122:8000/api",
+    # },
     {
         "name": "dispenda",
         "create_tasks": create_dispenda_tasks,
         "api_base_url": "http://192.168.222.154:8000/api",
     },
-    {
-        "name": "pendidikan",
-        "create_tasks": create_pendidikan_tasks,
-        "api_base_url": "http://192.168.222.180:5000/api",
-    },
-    {
-        "name": "dinsos",
-        "create_tasks": create_dinsos_tasks,
-        "api_base_url": "http://192.168.222.205:8000/api",
-    }
-        
+    # {
+    #     "name": "pendidikan",
+    #     "create_tasks": create_pendidikan_tasks,
+    #     "api_base_url": "http://192.168.222.180:5000/api",
+    # },
+    # {
+    #     "name": "dinsos",
+    #     "create_tasks": create_dinsos_tasks,
+    #     "api_base_url": "http://192.168.222.205:8000/api",
+    # },
+
     # Contoh source baru dengan IP berbeda:
     # {
     #     "name": "kependudukan",
@@ -199,9 +199,9 @@ def etl_dukcapil_to_dwh():
     # ========================================================
     # DATA SOURCE PIPELINES
     #
-    # Setiap source punya api_base_url sendiri.
-    # create_*_tasks() mengembalikan task terakhir dari
-    # pipeline-nya, lalu di-chain secara berurutan.
+    # Setelah t_dwh selesai, pipeline bercabang ke tiap source.
+    # - Dispenda (dict): t_dwh >> t_extract, lalu paralel
+    # - Tim lain (task): t_dwh >> t_extract (return task pertama)
     # ========================================================
 
     shared_kwargs = dict(
@@ -211,8 +211,6 @@ def etl_dukcapil_to_dwh():
         staging_db=STAGING_DB,
         dwh_db=DWH_DB,
     )
-
-    prev_task = t_dwh
 
     for source in PIPELINE_TASKS:
 
@@ -236,10 +234,18 @@ def etl_dukcapil_to_dwh():
             if k in sig_params
         }
 
-        current_task = source["create_tasks"](**source_kwargs)
+        hasil_task = source["create_tasks"](**filtered_kwargs)
 
-        prev_task >> current_task
-        prev_task = current_task
+        if isinstance(hasil_task, dict):
+            t_extract = hasil_task["extract_to_raw"]
+            t_transform = hasil_task["transform_staging"]
+            t_load = hasil_task["load_to_dwh"]
+
+            t_dwh >> t_extract
+            [t_extract, t_dwh] >> t_transform
+            t_transform >> t_load
+        else:
+            t_dwh >> hasil_task
 
 
 etl_dukcapil_to_dwh()

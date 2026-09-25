@@ -1491,4 +1491,4 @@ def create_dukcapil_tasks(
 
     t1 >> t2 >> t3
 
-    return t3
+    return t1
