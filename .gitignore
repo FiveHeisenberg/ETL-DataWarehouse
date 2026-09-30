@@ -13,6 +13,10 @@ airflow.cfg
 airflow.db
 .astro/*.local.yml
 .astro/*.local.yaml
+disnaker-api/
+tb_penduduk (1).pdf
+AGENTS.md
+db_disnaker/
 
 **/.astro/dbt_metadata.json
 **/.astro/manifest.slim.json

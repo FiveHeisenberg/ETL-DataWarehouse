@@ -112,6 +112,7 @@ def create_dukcapil_tasks(
                     f"""
                     CREATE TABLE `{raw_db}`.`{raw_table}`
                     (
+                        `_raw_id` BIGINT AUTO_INCREMENT PRIMARY KEY,
                         {col_defs},
                         `sumber_database` VARCHAR(100),
                         `waktu_ekstraksi` DATETIME
@@ -233,6 +234,11 @@ def create_dukcapil_tasks(
                 AND TRIM(nama_agama) <> '';
             """,
 
+            f"""
+            ALTER TABLE `{staging_db}`.`stg_agama`
+            ADD PRIMARY KEY (id_agama);
+            """,
+
             # =================================================
             # PROVINSI
             # =================================================
@@ -262,6 +268,11 @@ def create_dukcapil_tasks(
             WHERE
                 id_provinsi IS NOT NULL
                 AND TRIM(nama_provinsi) <> '';
+            """,
+
+            f"""
+            ALTER TABLE `{staging_db}`.`stg_provinsi`
+            ADD PRIMARY KEY (id_provinsi);
             """,
 
             # =================================================
@@ -299,6 +310,11 @@ def create_dukcapil_tasks(
                 AND id_provinsi IS NOT NULL;
             """,
 
+            f"""
+            ALTER TABLE `{staging_db}`.`stg_kabupaten_kota`
+            ADD PRIMARY KEY (id_kabupaten_kota);
+            """,
+
             # =================================================
             # KECAMATAN
             # =================================================
@@ -334,6 +350,11 @@ def create_dukcapil_tasks(
                 AND id_kabupaten_kota IS NOT NULL;
             """,
 
+            f"""
+            ALTER TABLE `{staging_db}`.`stg_kecamatan`
+            ADD PRIMARY KEY (id_kecamatan);
+            """,
+
             # =================================================
             # DESA
             # =================================================
@@ -367,6 +388,11 @@ def create_dukcapil_tasks(
             WHERE
                 id_desa IS NOT NULL
                 AND id_kecamatan IS NOT NULL;
+            """,
+
+            f"""
+            ALTER TABLE `{staging_db}`.`stg_desa`
+            ADD PRIMARY KEY (id_desa);
             """,
 
             # =================================================
@@ -409,6 +435,11 @@ def create_dukcapil_tasks(
                 AND id_desa IS NOT NULL;
             """,
 
+            f"""
+            ALTER TABLE `{staging_db}`.`stg_alamat`
+            ADD PRIMARY KEY (id_alamat);
+            """,
+
             # =================================================
             # STATUS PERKAWINAN
             # =================================================
@@ -440,6 +471,11 @@ def create_dukcapil_tasks(
                 id_status_perkawinan IS NOT NULL;
             """,
 
+            f"""
+            ALTER TABLE `{staging_db}`.`stg_status_perkawinan`
+            ADD PRIMARY KEY (id_status_perkawinan);
+            """,
+
             # =================================================
             # STATUS PENDUDUK
             # =================================================
@@ -469,6 +505,11 @@ def create_dukcapil_tasks(
 
             WHERE
                 id_status_penduduk IS NOT NULL;
+            """,
+
+            f"""
+            ALTER TABLE `{staging_db}`.`stg_status_penduduk`
+            ADD PRIMARY KEY (id_status_penduduk);
             """,
 
             # =================================================
@@ -525,6 +566,11 @@ def create_dukcapil_tasks(
                         ''
                     )
                 ) = 16;
+            """,
+
+            f"""
+            ALTER TABLE `{staging_db}`.`stg_kartu_keluarga`
+            ADD PRIMARY KEY (id_kk);
             """,
 
             # =================================================
@@ -627,6 +673,11 @@ def create_dukcapil_tasks(
 
                 -- Validasi jenis kelamin
                 AND p.jenis_kelamin IN ('L', 'P');
+            """,
+
+            f"""
+            ALTER TABLE `{staging_db}`.`stg_penduduk`
+            ADD PRIMARY KEY (nik);
             """,
         ]
 

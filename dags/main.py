@@ -32,15 +32,15 @@ from dukcapil import create_dukcapil_tasks
 from disnaker import create_disnaker_tasks
 
 PIPELINE_TASKS = [
-    {
-        "name": "dukcapil",
-        "create_tasks": create_dukcapil_tasks,
-        "api_base_url": "http://192.168.222.152:8000/api",
-    },
+    #{
+    #    "name": "dukcapil",
+    #    "create_tasks": create_dukcapil_tasks,
+    #    "api_base_url": "http://192.168.222.152:8000/api",
+    #},
         {
         "name": "disnaker",
         "create_tasks": create_disnaker_tasks,
-        "api_base_url": "http://192.168.222.71:8000/api",
+        "api_base_url": "http://192.168.222.159:8000/api",
     },
     # Contoh source baru dengan IP berbeda:
     # {
@@ -68,14 +68,16 @@ def execute_sql(statements):
     cursor = conn.cursor()
 
     try:
-        for statement in statements:
+        for i, statement in enumerate(statements):
             if statement.strip():
+                logging.info(f"Executing SQL statement {i+1}/{len(statements)}: {statement[:100]}...")
                 cursor.execute(statement)
 
         conn.commit()
 
-    except Exception:
+    except Exception as e:
         conn.rollback()
+        logging.error(f"Failed at statement {i+1}: {statement[:500]}")
         raise
 
     finally:
