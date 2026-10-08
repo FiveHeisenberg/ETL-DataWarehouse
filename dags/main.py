@@ -48,7 +48,7 @@ PIPELINE_TASKS = [
     {
         "name": "dispenda",
         "create_tasks": create_dispenda_tasks,
-        "api_base_url": "http://192.168.222.154:8000/api",
+        "api_base_url": "http://host.docker.internal:8000/api",
     },
     # {
     #     "name": "pendidikan",
