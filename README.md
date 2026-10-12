@@ -34,7 +34,7 @@ Data dari setiap basis data diekspos melalui **REST API** (FastAPI), kemudian di
 REST API  ->  raw_data  ->  staging_area  ->  dwh (star schema)
 ```
 
-Pada tahap **ekstraksi**, data API disalin apa adanya (mirror) ke database `raw_data` lengkap dengan metadata sumber (`sumber_database` dan `waktu_ekstraksi`). Pada tahap **transformasi**, data dibersihkan, distandarisasi, dan divalidasi ke database `staging_area` (misalnya validasi NIK 16 digit, normalisasi format tanggal, standarisasi nilai enum, penghilangan duplikat). Terakhir, data **dimuat** ke dalam Data Warehouse `dwh` dengan model **star schema** (tabel `dim_*` dan `fact_*`) yang siap digunakan untuk pelaporan dan analisis.
+Pada tahap **ekstraksi**, data API disalin apa adanya (mirror) ke database `raw_data` lengkap dengan metadata sumber (`sumber_database` dan `waktu_ekstraksi`). Pada tahap **transformasi**, data dibersihkan, distandarisasi, dan divalidasi ke database `staging_area` (misalnya validasi NIK 16 digit, normalisasi format tanggal, standarisasi nilai enum, penghilangan duplikat). Terakhir, data **dimuat** ke dalam Data Warehouse `dwh` dengan model **star schema** (tabel `dim_*` dan `fact_*`, dengan hierarki wilayah dinormalisasi ala snowflake) yang siap digunakan untuk pelaporan dan analisis.
 
 ## Tim & Identitas Magang
 
@@ -184,7 +184,7 @@ Semua endpoint API bersifat *read-only* dan mendukung paginasi `?page=1&limit=10
 
 ## Model Data Target
 
-Data Warehouse `dwh` menggunakan **star schema** dengan tabel dimensi (`dim_*`) dan fakta (`fact_*`).
+Data Warehouse `dwh` menggunakan **star schema** dengan tabel dimensi (`dim_*`) dan fakta (`fact_*`). Hierarki wilayah dinormalisasi (**snowflake schema**) agar tiap level wilayah (mis. kabupaten) bisa dipakai lintas domain analisis.
 
 ### Kependudukan (Dukcapil) — *snapshot harian per penduduk*
 
@@ -195,9 +195,13 @@ Data Warehouse `dwh` menggunakan **star schema** dengan tabel dimensi (`dim_*`) 
 | `dim_status_perkawinan` | Dimensi status perkawinan |
 | `dim_status_penduduk` | Dimensi status penduduk (hidup/mati) |
 | `dim_kartu_keluarga` | Dimensi Kartu Keluarga |
-| `dim_wilayah` | Dimensi wilayah denormalisasi: alamat → desa → kecamatan → kabupaten/kota → provinsi |
+| `dim_provinsi` | Dimensi provinsi (unik per `id_provinsi`) |
+| `dim_kabupaten_kota` | Dimensi kabupaten/kota → relasi natural key ke `dim_provinsi` |
+| `dim_kecamatan` | Dimensi kecamatan → relasi natural key ke `dim_kabupaten_kota` |
+| `dim_desa` | Dimensi desa/kelurahan → relasi natural key ke `dim_kecamatan` |
+| `dim_alamat` | Dimensi alamat (jalan, kode pos) → relasi natural key ke `dim_desa` |
 | `dim_penduduk` | Dimensi penduduk (unik per NIK) |
-| `fact_penduduk` | Fakta snapshot penduduk (1 baris/penduduk/hari) + perhitungan `umur` |
+| `fact_penduduk` | Fakta snapshot penduduk (1 baris/penduduk/hari) + perhitungan `umur`; FK `alamat_key` ke `dim_alamat` |
 
 ### Pajak Daerah (Dispenda)
 
