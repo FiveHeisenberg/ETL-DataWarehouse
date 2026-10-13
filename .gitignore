@@ -14,12 +14,14 @@ airflow.db
 .astro/*.local.yml
 .astro/*.local.yaml
 
-**/.astro/dbt_metadata.json
+**/.astro/dbt_metadata.json``
 **/.astro/manifest.slim.json
-<<<<<<< HEAD
 
 # AI Agent Configuration (Local Only)
 AGENTS.md
 opencode.json
-=======
->>>>>>> origin/etl/dinsos
+
+disnaker-api/
+tb_penduduk (1).pdf
+db_disnaker/
+context/
