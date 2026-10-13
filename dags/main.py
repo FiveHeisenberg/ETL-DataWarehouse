@@ -28,17 +28,13 @@ DWH_DB = "dwh"
 #    beserta api_base_url source masing-masing
 # ============================================================
 
-from dukcapil import create_dukcapil_tasks
-from disnaker import create_disnaker_tasks
-from dispenda import create_dispenda_tasks
-from pendidikan import create_pendidikan_tasks
-from dinsos import create_dinsos_tasks
+from ketangguhanbencana import create_ketangguhanbencana_tasks
 
 PIPELINE_TASKS = [
     {
-        "name": "dukcapil",
-        "create_tasks": create_dukcapil_tasks,
-        "api_base_url": "http://192.168.222.152:8000/api",
+        "name": "ketangguhanbencana",
+        "create_tasks": create_ketangguhanbencana_tasks,
+        "api_base_url": "http://192.168.222.57:8000/api",
     },
     # {
     #     "name": "disnaker",
