@@ -710,13 +710,13 @@ def create_dukcapil_tasks(
 
         dim_tables = [
             "dim_waktu",
-            "dim_agama",
-            "dim_status_perkawinan",
-            "dim_status_penduduk",
-            "dim_kartu_keluarga",
-            "dim_wilayah",
-            "dim_penduduk",
-            "fact_penduduk",
+            "dim_dukcapil_agama",
+            "dim_dukcapil_status_perkawinan",
+            "dim_dukcapil_status_penduduk",
+            "dim_dukcapil_kartu_keluarga",
+            "dim_wilayah_penduduk",
+            "dim_dukcapil_penduduk",
+            "fact_dukcapil_penduduk",
         ]
 
         convert_dim_tables = [align_collation]
@@ -781,7 +781,7 @@ def create_dukcapil_tasks(
 
             f"""
             CREATE TABLE IF NOT EXISTS
-            `{dwh_db}`.`dim_agama`
+            `{dwh_db}`.`dim_dukcapil_agama`
             (
                 agama_key INT AUTO_INCREMENT
                     PRIMARY KEY,
@@ -806,7 +806,7 @@ def create_dukcapil_tasks(
 
             f"""
             CREATE TABLE IF NOT EXISTS
-            `{dwh_db}`.`dim_status_perkawinan`
+            `{dwh_db}`.`dim_dukcapil_status_perkawinan`
             (
                 status_perkawinan_key
                     INT AUTO_INCREMENT PRIMARY KEY,
@@ -834,7 +834,7 @@ def create_dukcapil_tasks(
 
             f"""
             CREATE TABLE IF NOT EXISTS
-            `{dwh_db}`.`dim_status_penduduk`
+            `{dwh_db}`.`dim_dukcapil_status_penduduk`
             (
                 status_penduduk_key
                     INT AUTO_INCREMENT PRIMARY KEY,
@@ -862,7 +862,7 @@ def create_dukcapil_tasks(
 
             f"""
             CREATE TABLE IF NOT EXISTS
-            `{dwh_db}`.`dim_kartu_keluarga`
+            `{dwh_db}`.`dim_dukcapil_kartu_keluarga`
             (
                 kartu_keluarga_key
                     INT AUTO_INCREMENT PRIMARY KEY,
@@ -895,7 +895,7 @@ def create_dukcapil_tasks(
 
             f"""
             CREATE TABLE IF NOT EXISTS
-            `{dwh_db}`.`dim_wilayah`
+            `{dwh_db}`.`dim_wilayah_penduduk`
             (
                 wilayah_key
                     INT AUTO_INCREMENT PRIMARY KEY,
@@ -933,7 +933,7 @@ def create_dukcapil_tasks(
 
             f"""
             CREATE TABLE IF NOT EXISTS
-            `{dwh_db}`.`dim_penduduk`
+            `{dwh_db}`.`dim_dukcapil_penduduk`
             (
                 penduduk_key
                     BIGINT AUTO_INCREMENT PRIMARY KEY,
@@ -969,9 +969,9 @@ def create_dukcapil_tasks(
 
             f"""
             CREATE TABLE IF NOT EXISTS
-            `{dwh_db}`.`fact_penduduk`
+            `{dwh_db}`.`fact_dukcapil_penduduk`
             (
-                fact_penduduk_key
+                fact_dukcapil_penduduk_key
                     BIGINT AUTO_INCREMENT PRIMARY KEY,
 
                 penduduk_key BIGINT NOT NULL,
@@ -1086,7 +1086,7 @@ def create_dukcapil_tasks(
             # -----------------------------------------------
 
             f"""
-            INSERT INTO `{dwh_db}`.`dim_agama`
+            INSERT INTO `{dwh_db}`.`dim_dukcapil_agama`
             (
                 id_agama,
                 nama_agama,
@@ -1120,7 +1120,7 @@ def create_dukcapil_tasks(
 
             f"""
             INSERT INTO
-            `{dwh_db}`.`dim_status_perkawinan`
+            `{dwh_db}`.`dim_dukcapil_status_perkawinan`
             (
                 id_status_perkawinan,
                 status_perkawinan,
@@ -1155,7 +1155,7 @@ def create_dukcapil_tasks(
 
             f"""
             INSERT INTO
-            `{dwh_db}`.`dim_status_penduduk`
+            `{dwh_db}`.`dim_dukcapil_status_penduduk`
             (
                 id_status_penduduk,
                 status_penduduk,
@@ -1190,7 +1190,7 @@ def create_dukcapil_tasks(
 
             f"""
             INSERT INTO
-            `{dwh_db}`.`dim_kartu_keluarga`
+            `{dwh_db}`.`dim_dukcapil_kartu_keluarga`
             (
                 id_kk,
                 no_kk,
@@ -1230,11 +1230,11 @@ def create_dukcapil_tasks(
             """,
 
             # -----------------------------------------------
-            # DIM WILAYAH
+            # DIM WILAYAH_PENDUDUK
             # -----------------------------------------------
 
             f"""
-            INSERT INTO `{dwh_db}`.`dim_wilayah`
+            INSERT INTO `{dwh_db}`.`dim_wilayah_penduduk`
             (
                 id_alamat,
 
@@ -1331,7 +1331,7 @@ def create_dukcapil_tasks(
             # -----------------------------------------------
 
             f"""
-            INSERT INTO `{dwh_db}`.`dim_penduduk`
+            INSERT INTO `{dwh_db}`.`dim_dukcapil_penduduk`
             (
                 nik,
                 nama_lengkap,
@@ -1388,7 +1388,7 @@ def create_dukcapil_tasks(
         # ====================================================
 
         load_fact = f"""
-        INSERT INTO `{dwh_db}`.`fact_penduduk`
+        INSERT INTO `{dwh_db}`.`fact_dukcapil_penduduk`
         (
             penduduk_key,
             wilayah_key,
@@ -1445,31 +1445,31 @@ def create_dukcapil_tasks(
             `{staging_db}`.`stg_penduduk` sp
 
         INNER JOIN
-            `{dwh_db}`.`dim_penduduk` dp
+            `{dwh_db}`.`dim_dukcapil_penduduk` dp
             ON sp.nik = dp.nik
 
         LEFT JOIN
-            `{dwh_db}`.`dim_wilayah` dw
+            `{dwh_db}`.`dim_wilayah_penduduk` dw
             ON sp.id_alamat =
                dw.id_alamat
 
         LEFT JOIN
-            `{dwh_db}`.`dim_agama` da
+            `{dwh_db}`.`dim_dukcapil_agama` da
             ON sp.id_agama =
                da.id_agama
 
         LEFT JOIN
-            `{dwh_db}`.`dim_status_perkawinan` dsp
+            `{dwh_db}`.`dim_dukcapil_status_perkawinan` dsp
             ON sp.id_status_perkawinan =
                dsp.id_status_perkawinan
 
         LEFT JOIN
-            `{dwh_db}`.`dim_status_penduduk` dstatus
+            `{dwh_db}`.`dim_dukcapil_status_penduduk` dstatus
             ON sp.id_status_penduduk =
                dstatus.id_status_penduduk
 
         LEFT JOIN
-            `{dwh_db}`.`dim_kartu_keluarga` dkk
+            `{dwh_db}`.`dim_dukcapil_kartu_keluarga` dkk
             ON sp.id_kk =
                dkk.id_kk
 

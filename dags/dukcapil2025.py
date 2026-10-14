@@ -843,7 +843,7 @@ def create_dukcapil_tasks2025(
         # ====================================================
         # DROP TABEL LEGACY (SKEMA LAMA)
         #
-        # dim_wilayah lama diganti hierarki snowflake:
+        # dim_wilayah_penduduk lama diganti hierarki snowflake:
         # dim_provinsi -> dim_kabupaten_kota -> dim_kecamatan
         # -> dim_desa -> dim_alamat
         # fact_penduduk lama memakai wilayah_key, dibuat ulang
@@ -852,7 +852,7 @@ def create_dukcapil_tasks2025(
 
         execute_sql([
             f"DROP TABLE IF EXISTS `{dwh_db}`.`fact_penduduk`;",
-            f"DROP TABLE IF EXISTS `{dwh_db}`.`dim_wilayah`;",
+            f"DROP TABLE IF EXISTS `{dwh_db}`.`dim_wilayah_penduduk`;",
         ])
 
         create_tables = [
