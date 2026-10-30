@@ -62,16 +62,16 @@ PIPELINE_TASKS = [
     #     "create_tasks": create_dinsos_tasks,
     #     "api_base_url": "http://192.168.222.205:8000/api",
     # },
-    {
-        'name': 'kesehatan',
-        "create_tasks": create_kesehatan_tasks,
-        'api_base_url': "http://192.168.222.152:8011/api/kemenkes",
-    },
-    {
-        'name': 'pangan',
-        "create_tasks": create_pangan_tasks,
-        'api_base_url': "http://192.168.222.152:8012/api/pangan",
-    }
+    # {
+    #     'name': 'kesehatan',
+    #     "create_tasks": create_kesehatan_tasks,
+    #     'api_base_url': "http://192.168.222.152:8011/api/kemenkes",
+    # },
+    # {
+    #     'name': 'pangan',
+    #     "create_tasks": create_pangan_tasks,
+    #     'api_base_url': "http://192.168.222.152:8012/api/pangan",
+    # }
         
     # Contoh source baru dengan IP berbeda:
     # {

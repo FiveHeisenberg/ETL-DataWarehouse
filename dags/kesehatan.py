@@ -33,6 +33,16 @@ Bentuk respons: {"status": "success", "data": [...], "total": N}
 #         pertama kali, agar DROP tidak dijalankan lagi pada run berikutnya.
 MIGRASI_STRUKTUR_LAMA = True
 
+# ============================================================
+# MIGRASI WILAYAH -> STRUKTUR BARU
+# ============================================================
+# True  : DROP dim_kesehatan_rs dan semua fact yang memakai rs_key,
+#         lalu dibuat ulang dengan kolom wilayah_key menggantikan
+#         kolom wilayah yang sebelumnya inline di dim_kesehatan_rs.
+# False : setel menjadi False SETELAH struktur baru berhasil dibuat
+#         pertama kali, agar DROP tidak dijalankan lagi pada run berikutnya.
+MIGRASI_WILAYAH = True
+
 
 # ============================================================
 # KONFIGURASI DOMAIN KESEHATAN
@@ -56,6 +66,7 @@ SOURCE_ENDPOINTS = {
     "penyakit":              "/penyakit",
     "pasien":                "/pasien",
     "kasus_penyakit_rs":     "/kasus-penyakit-rs",
+    "puskesmas":             "/puskesmas",
 }
 
 
@@ -599,7 +610,7 @@ def create_kesehatan_tasks(
     # TASK 2B: TRANSFORM - RS FAMILY (RS + relasi + tenaga medis + penyakit)
     # ========================================================
     # Tabel-tabel yang berkaitan dengan RS: RS, layanan, fasilitas,
-    # tenaga medis, dan penyakit. Depends on task 2A.
+    # tenaga medis, penyakit, dan puskesmas. Depends on task 2A.
 
     @task
     def transform_rs_family():
@@ -878,6 +889,39 @@ def create_kesehatan_tasks(
             WHERE
                 id_penyakit IS NOT NULL
                 AND TRIM(nama_penyakit) <> '';
+            """,
+
+            # =================================================
+            # PUSKESMAS
+            # Asumsi kolom API: id_puskesmas, nama_puskesmas,
+            # alamat, telepon, id_kabupaten_kota
+            # =================================================
+
+            f"""
+            DROP TABLE IF EXISTS
+            `{staging_db}`.`stg_puskesmas`;
+            """,
+
+            f"""
+            CREATE TABLE `{staging_db}`.`stg_puskesmas`
+            (
+                id BIGINT NOT NULL AUTO_INCREMENT PRIMARY KEY
+            ) AS
+
+            SELECT DISTINCT
+                TRIM(id_puskesmas) AS id_puskesmas,
+                TRIM(id_kabupaten_kota) AS id_kabupaten_kota,
+                NULLIF(TRIM(nama_puskesmas), '') AS nama_puskesmas,
+                NULLIF(TRIM(alamat), '') AS alamat,
+                NULLIF(TRIM(telepon), '') AS telepon,
+                sumber_database,
+                waktu_ekstraksi
+
+            FROM `{raw_db}`.`raw_puskesmas`
+
+            WHERE
+                id_puskesmas IS NOT NULL
+                AND TRIM(nama_puskesmas) <> '';
             """,
         ]
 
@@ -1202,16 +1246,14 @@ def create_kesehatan_tasks(
     # TASK 3: LOAD -> DATA WAREHOUSE
     # ========================================================
     # Membuat dimensi & fakta baru (tanpa membuat ulang dim_waktu /
-    # dim_dukcapil_penduduk), memuat dimensi (dim_kesehatan_rs memakai SCD Type 2),
-    # lalu memuat fakta secara idempoten (ON DUPLICATE KEY UPDATE).
+    # dim_dukcapil_penduduk), memuat dimensi, lalu memuat fakta secara
+    # idempoten (ON DUPLICATE KEY UPDATE).
 
     @task
     def load_to_dwh():
 
         logging.info("Membuat dimension dan fact kesehatan...")
 
-        # "Hari ini" / tanggal snapshot dihitung di Python (Asia/Jakarta)
-        # lalu disisipkan ke SQL; CURDATE() TIDAK dipakai di pipeline.
         etl_date = pendulum.now("Asia/Jakarta").to_date_string()
 
         align_collation = f"""
@@ -1282,13 +1324,61 @@ def create_kesehatan_tasks(
             )
 
         # ====================================================
-        # DDL: DIMENSI & FAKTA BARU
+        # MIGRASI WILAYAH -> STRUKTUR BARU
+        # ====================================================
+        # dim_kesehatan_rs sekarang memakai wilayah_key, bukan kolom
+        # wilayah inline. Semua fact yang memakai rs_key juga harus
+        # di-drop terlebih dahulu agar tidak ada constraint yang menghambat.
+        # Set MIGRASI_WILAYAH = False setelah berhasil berjalan pertama kali.
+
+        if MIGRASI_WILAYAH:
+            migration_wilayah = [
+                f"DROP TABLE IF EXISTS `{dwh_db}`.`fact_kesehatan_kasus_penyakit`;",
+                f"DROP TABLE IF EXISTS `{dwh_db}`.`fact_kesehatan_layanan_rs`;",
+                f"DROP TABLE IF EXISTS `{dwh_db}`.`fact_kesehatan_fasilitas_rs`;",
+                f"DROP TABLE IF EXISTS `{dwh_db}`.`fact_kesehatan_tenaga_medis`;",
+                f"DROP TABLE IF EXISTS `{dwh_db}`.`fact_kesehatan_ketersediaan_fasilitas`;",
+                f"DROP TABLE IF EXISTS `{dwh_db}`.`dim_kesehatan_rs`;",
+            ]
+            execute_sql(migration_wilayah)
+            logging.info(
+                "Migrasi wilayah: dim_kesehatan_rs dan fact terkait "
+                "versi lama telah di-drop."
+            )
+
+        # ====================================================
+        # DDL: DIMENSI & FAKTA
         # ====================================================
 
         create_tables = [
 
             # ---------------------------------------------
-            # DIM RS (Type 1 - atribut kelas/jenis/pemilik diupdate in-place)
+            # DIM WILAYAH (kab/kota + provinsi)
+            # Sumber: stg_kabupaten_kota + stg_provinsi
+            # ---------------------------------------------
+
+            f"""
+            CREATE TABLE IF NOT EXISTS
+            `{dwh_db}`.`dim_kesehatan_wilayah`
+            (
+                wilayah_kesehatan_key INT AUTO_INCREMENT PRIMARY KEY,
+
+                id_kabupaten_kota VARCHAR(10) NOT NULL,
+                nama_kabupaten_kota VARCHAR(100),
+                id_provinsi VARCHAR(10),
+                nama_provinsi VARCHAR(100),
+
+                sumber_database VARCHAR(255),
+                waktu_load DATETIME NOT NULL,
+
+                UNIQUE KEY uk_wilayah
+                    (id_kabupaten_kota)
+            );
+            """,
+
+            # ---------------------------------------------
+            # DIM RS (Type 1)
+            # Kolom wilayah diganti dengan wilayah_key (FK ke dim_kesehatan_wilayah)
             # ---------------------------------------------
 
             f"""
@@ -1304,7 +1394,6 @@ def create_kesehatan_tasks(
                 latitude DECIMAL(10,7),
                 longitude DECIMAL(10,7),
 
-                -- atribut (diupdate in-place, Type 1)
                 id_kelas_rs VARCHAR(10),
                 nama_kelas VARCHAR(30),
                 id_jenis_rs VARCHAR(10),
@@ -1312,16 +1401,42 @@ def create_kesehatan_tasks(
                 id_pemilik_rs VARCHAR(10),
                 nama_pemilik VARCHAR(60),
 
-                id_kabupaten_kota VARCHAR(10),
-                nama_kabupaten_kota VARCHAR(100),
-                id_provinsi VARCHAR(10),
-                nama_provinsi VARCHAR(100),
+                wilayah_key INT,
 
                 sumber_database VARCHAR(255),
                 waktu_load DATETIME NOT NULL,
 
                 UNIQUE KEY uk_rs
-                    (id_rs)
+                    (id_rs),
+
+                KEY idx_rs_wilayah (wilayah_key)
+            );
+            """,
+
+            # ---------------------------------------------
+            # DIM PUSKESMAS (Type 1)
+            # ---------------------------------------------
+
+            f"""
+            CREATE TABLE IF NOT EXISTS
+            `{dwh_db}`.`dim_kesehatan_puskesmas`
+            (
+                puskesmas_key INT AUTO_INCREMENT PRIMARY KEY,
+
+                id_puskesmas VARCHAR(20) NOT NULL,
+                nama_puskesmas VARCHAR(150),
+                alamat TEXT,
+                telepon VARCHAR(50),
+
+                wilayah_key INT,
+
+                sumber_database VARCHAR(255),
+                waktu_load DATETIME NOT NULL,
+
+                UNIQUE KEY uk_puskesmas
+                    (id_puskesmas),
+
+                KEY idx_pkm_wilayah (wilayah_key)
             );
             """,
 
@@ -1412,7 +1527,7 @@ def create_kesehatan_tasks(
             """,
 
             # ---------------------------------------------
-            # DIM TENAGA MEDIS (jenis, + kategori_profesi)
+            # DIM TENAGA MEDIS (grain = jenis)
             # UNIQUE: id_jenis_tenaga_medis
             # ---------------------------------------------
 
@@ -1433,6 +1548,26 @@ def create_kesehatan_tasks(
 
                 UNIQUE KEY uk_jenis_tenaga
                     (id_jenis_tenaga_medis)
+            );
+            """,
+
+            # ---------------------------------------------
+            # DIM KETERSEDIAAN FASILITAS (target rasio penduduk, statis)
+            # RS       = 10.000 penduduk per 1 RS
+            # Puskesmas = 30.000 penduduk per 1 Puskesmas
+            # ---------------------------------------------
+
+            f"""
+            CREATE TABLE IF NOT EXISTS
+            `{dwh_db}`.`dim_kesehatan_ketersediaan_fasilitas`
+            (
+                target_fasilitas_key INT AUTO_INCREMENT PRIMARY KEY,
+
+                jenis_fasilitas VARCHAR(50) NOT NULL,
+                rasio_penduduk INT NOT NULL,
+
+                UNIQUE KEY uk_jenis_ketersediaan
+                    (jenis_fasilitas)
             );
             """,
 
@@ -1523,7 +1658,7 @@ def create_kesehatan_tasks(
             """,
 
             # ---------------------------------------------
-            # FACT TENAGA MEDIS (snapshot)
+            # FACT TENAGA MEDIS (snapshot, grain = jenis per RS)
             # ---------------------------------------------
 
             f"""
@@ -1547,16 +1682,150 @@ def create_kesehatan_tasks(
                 KEY idx_ft_waktu (waktu_key)
             );
             """,
+
+            # ---------------------------------------------
+            # FACT KETERSEDIAAN FASILITAS
+            # grain: wilayah x waktu (snapshot per ETL date)
+            # Menyimpan jumlah penduduk, RS aktual, dan
+            # puskesmas aktual per kabupaten/kota.
+            # ---------------------------------------------
+
+            f"""
+            CREATE TABLE IF NOT EXISTS
+            `{dwh_db}`.`fact_kesehatan_ketersediaan_fasilitas`
+            (
+                fact_ketersediaan_key BIGINT AUTO_INCREMENT PRIMARY KEY,
+
+                wilayah_kesehatan_key INT NOT NULL,
+                waktu_key INT NOT NULL,
+
+                jumlah_penduduk INT,
+                jumlah_rs_aktual INT,
+                jumlah_puskesmas_aktual INT,
+
+                sumber_database VARCHAR(255),
+                waktu_load DATETIME NOT NULL,
+
+                UNIQUE KEY uk_fact_ketersediaan
+                    (wilayah_kesehatan_key, waktu_key),
+
+                KEY idx_fkt_waktu (waktu_key)
+            );
+            """,
         ]
 
         execute_sql(create_tables)
 
+        metadata_columns = {
+            "dim_waktu": ("waktu_load DATETIME",),
+            "dim_kesehatan_wilayah": (
+                "sumber_database VARCHAR(255)",
+                "waktu_load DATETIME",
+            ),
+            "dim_kesehatan_rs": (
+                "sumber_database VARCHAR(255)",
+                "waktu_load DATETIME",
+            ),
+            "dim_kesehatan_puskesmas": (
+                "sumber_database VARCHAR(255)",
+                "waktu_load DATETIME",
+            ),
+            "dim_kesehatan_penyakit": (
+                "sumber_database VARCHAR(255)",
+                "waktu_load DATETIME",
+            ),
+            "dim_kesehatan_layanan": (
+                "sumber_database VARCHAR(255)",
+                "waktu_load DATETIME",
+            ),
+            "dim_kesehatan_fasilitas": (
+                "sumber_database VARCHAR(255)",
+                "waktu_load DATETIME",
+            ),
+            "dim_kesehatan_tenaga_medis": (
+                "sumber_database VARCHAR(255)",
+                "waktu_load DATETIME",
+            ),
+            "fact_kesehatan_kasus_penyakit": (
+                "sumber_database VARCHAR(255)",
+                "waktu_load DATETIME",
+            ),
+            "fact_kesehatan_layanan_rs": (
+                "sumber_database VARCHAR(255)",
+                "waktu_load DATETIME",
+            ),
+            "fact_kesehatan_fasilitas_rs": (
+                "sumber_database VARCHAR(255)",
+                "waktu_load DATETIME",
+            ),
+            "fact_kesehatan_tenaga_medis": (
+                "sumber_database VARCHAR(255)",
+                "waktu_load DATETIME",
+            ),
+            "fact_kesehatan_ketersediaan_fasilitas": (
+                "sumber_database VARCHAR(255)",
+                "waktu_load DATETIME",
+            ),
+        }
+
+        metadata_migrations = []
+        metadata_conn = hook.get_conn()
+        metadata_cursor = metadata_conn.cursor()
+
+        try:
+            for table_name, columns in metadata_columns.items():
+                metadata_cursor.execute(
+                    """
+                    SELECT COUNT(*)
+                    FROM information_schema.tables
+                    WHERE table_schema = %s
+                      AND table_name = %s
+                    """,
+                    (dwh_db, table_name),
+                )
+
+                if not metadata_cursor.fetchone()[0]:
+                    continue
+
+                metadata_cursor.execute(
+                    """
+                    SELECT column_name
+                    FROM information_schema.columns
+                    WHERE table_schema = %s
+                      AND table_name = %s
+                    """,
+                    (dwh_db, table_name),
+                )
+                existing_columns = {
+                    row[0] for row in metadata_cursor.fetchall()
+                }
+
+                missing_columns = [
+                    definition
+                    for definition in columns
+                    if definition.split()[0] not in existing_columns
+                ]
+
+                if missing_columns:
+                    metadata_migrations.append(
+                        f"""
+                        ALTER TABLE `{dwh_db}`.`{table_name}`
+                        ADD COLUMN {', ADD COLUMN '.join(missing_columns)};
+                        """
+                    )
+        finally:
+            metadata_cursor.close()
+            metadata_conn.close()
+
+        if metadata_migrations:
+            execute_sql(metadata_migrations)
+            logging.info(
+                "Migrasi kolom sumber_database selesai untuk %d tabel.",
+                len(metadata_migrations),
+            )
+
         # ====================================================
         # POPULASI DIM_WAKTU (hanya baris yang belum ada)
-        #
-        # dim_waktu sudah ada; tidak dibuat ulang. Baris tanggal
-        # untuk tanggal_kasus (historis) dan tanggal ETL ditambahkan
-        # agar lookup waktu_key pada fact valid.
         # ====================================================
 
         fill_dim_waktu = f"""
@@ -1604,12 +1873,49 @@ def create_kesehatan_tasks(
 
         # ====================================================
         # LOAD DIMENSI
+        # Urutan penting: dim_kesehatan_wilayah harus diisi
+        # sebelum dim_kesehatan_rs dan dim_kesehatan_puskesmas
+        # karena keduanya membutuhkan wilayah_kesehatan_key.
         # ====================================================
 
         load_dimensions = [
 
             # ---------------------------------------------
-            # DIM RS (Type 1 - semua atribut diupdate in-place)
+            # DIM WILAYAH (Type 1)
+            # Harus diload pertama kali sebelum RS & puskesmas
+            # ---------------------------------------------
+
+            f"""
+            INSERT INTO `{dwh_db}`.`dim_kesehatan_wilayah`
+            (
+                id_kabupaten_kota, nama_kabupaten_kota,
+                id_provinsi, nama_provinsi,
+                sumber_database, waktu_load
+            )
+
+            SELECT
+                kab.id_kabupaten_kota,
+                kab.nama_kabupaten_kota,
+                kab.id_provinsi,
+                prov.nama_provinsi,
+                kab.sumber_database,
+                NOW()
+
+            FROM `{staging_db}`.`stg_kabupaten_kota` kab
+
+            LEFT JOIN `{staging_db}`.`stg_provinsi` prov
+                ON kab.id_provinsi = prov.id_provinsi
+
+            ON DUPLICATE KEY UPDATE
+                nama_kabupaten_kota = VALUES(nama_kabupaten_kota),
+                id_provinsi         = VALUES(id_provinsi),
+                nama_provinsi       = VALUES(nama_provinsi),
+                sumber_database     = VALUES(sumber_database),
+                waktu_load          = VALUES(waktu_load);
+            """,
+
+            # ---------------------------------------------
+            # DIM RS (Type 1, wilayah_key dari dim_kesehatan_wilayah)
             # ---------------------------------------------
 
             f"""
@@ -1619,40 +1925,82 @@ def create_kesehatan_tasks(
                 id_kelas_rs, nama_kelas,
                 id_jenis_rs, nama_jenis_rs,
                 id_pemilik_rs, nama_pemilik,
-                id_kabupaten_kota, nama_kabupaten_kota,
-                id_provinsi, nama_provinsi,
+                wilayah_key,
                 sumber_database, waktu_load
             )
 
             SELECT
-                s.id_rs, s.nama_rs, s.alamat, s.telepon, s.latitude, s.longitude,
-                s.id_kelas_rs, s.nama_kelas,
-                s.id_jenis_rs, s.nama_jenis_rs,
-                s.id_pemilik_rs, s.nama_pemilik,
-                s.id_kabupaten_kota, s.nama_kabupaten_kota,
-                s.id_provinsi, s.nama_provinsi,
-                s.sumber_database, NOW()
+                s.id_rs,
+                s.nama_rs,
+                s.alamat,
+                s.telepon,
+                s.latitude,
+                s.longitude,
+                s.id_kelas_rs,
+                s.nama_kelas,
+                s.id_jenis_rs,
+                s.nama_jenis_rs,
+                s.id_pemilik_rs,
+                s.nama_pemilik,
+                w.wilayah_kesehatan_key,
+                s.sumber_database,
+                NOW()
 
             FROM `{staging_db}`.`stg_rs_lengkap` s
 
+            LEFT JOIN `{dwh_db}`.`dim_kesehatan_wilayah` w
+                ON s.id_kabupaten_kota = w.id_kabupaten_kota
+
             ON DUPLICATE KEY UPDATE
-                nama_rs = VALUES(nama_rs),
-                alamat = VALUES(alamat),
-                telepon = VALUES(telepon),
-                latitude = VALUES(latitude),
-                longitude = VALUES(longitude),
-                id_kelas_rs = VALUES(id_kelas_rs),
-                nama_kelas = VALUES(nama_kelas),
-                id_jenis_rs = VALUES(id_jenis_rs),
+                nama_rs       = VALUES(nama_rs),
+                alamat        = VALUES(alamat),
+                telepon       = VALUES(telepon),
+                latitude      = VALUES(latitude),
+                longitude     = VALUES(longitude),
+                id_kelas_rs   = VALUES(id_kelas_rs),
+                nama_kelas    = VALUES(nama_kelas),
+                id_jenis_rs   = VALUES(id_jenis_rs),
                 nama_jenis_rs = VALUES(nama_jenis_rs),
                 id_pemilik_rs = VALUES(id_pemilik_rs),
-                nama_pemilik = VALUES(nama_pemilik),
-                id_kabupaten_kota = VALUES(id_kabupaten_kota),
-                nama_kabupaten_kota = VALUES(nama_kabupaten_kota),
-                id_provinsi = VALUES(id_provinsi),
-                nama_provinsi = VALUES(nama_provinsi),
+                nama_pemilik  = VALUES(nama_pemilik),
+                wilayah_key   = VALUES(wilayah_key),
                 sumber_database = VALUES(sumber_database),
-                waktu_load = VALUES(waktu_load);
+                waktu_load    = VALUES(waktu_load);
+            """,
+
+            # ---------------------------------------------
+            # DIM PUSKESMAS (Type 1)
+            # ---------------------------------------------
+
+            f"""
+            INSERT INTO `{dwh_db}`.`dim_kesehatan_puskesmas`
+            (
+                id_puskesmas, nama_puskesmas, alamat, telepon,
+                wilayah_key,
+                sumber_database, waktu_load
+            )
+
+            SELECT
+                p.id_puskesmas,
+                p.nama_puskesmas,
+                p.alamat,
+                p.telepon,
+                w.wilayah_kesehatan_key,
+                p.sumber_database,
+                NOW()
+
+            FROM `{staging_db}`.`stg_puskesmas` p
+
+            LEFT JOIN `{dwh_db}`.`dim_kesehatan_wilayah` w
+                ON p.id_kabupaten_kota = w.id_kabupaten_kota
+
+            ON DUPLICATE KEY UPDATE
+                nama_puskesmas  = VALUES(nama_puskesmas),
+                alamat          = VALUES(alamat),
+                telepon         = VALUES(telepon),
+                wilayah_key     = VALUES(wilayah_key),
+                sumber_database = VALUES(sumber_database),
+                waktu_load      = VALUES(waktu_load);
             """,
 
             # ---------------------------------------------
@@ -1681,11 +2029,11 @@ def create_kesehatan_tasks(
                 ON p.id_kategori_penyakit = k.id_kategori_penyakit
 
             ON DUPLICATE KEY UPDATE
-                nama_penyakit = VALUES(nama_penyakit),
+                nama_penyakit        = VALUES(nama_penyakit),
                 id_kategori_penyakit = VALUES(id_kategori_penyakit),
-                nama_kategori = VALUES(nama_kategori),
-                sumber_database = VALUES(sumber_database),
-                waktu_load = VALUES(waktu_load);
+                nama_kategori        = VALUES(nama_kategori),
+                sumber_database      = VALUES(sumber_database),
+                waktu_load           = VALUES(waktu_load);
             """,
 
             # ---------------------------------------------
@@ -1708,15 +2056,15 @@ def create_kesehatan_tasks(
             FROM `{staging_db}`.`stg_jenis_layanan_rs`
 
             ON DUPLICATE KEY UPDATE
-                nama_layanan = VALUES(nama_layanan),
+                nama_layanan    = VALUES(nama_layanan),
                 sumber_database = VALUES(sumber_database),
-                waktu_load = VALUES(waktu_load);
+                waktu_load      = VALUES(waktu_load);
             """,
 
             # ---------------------------------------------
             # DIM FASILITAS (Type 1)
             # Sumber: stg_fasilitas_rs (nama fasilitas) +
-            # stg_jenis_fasilitas_rs (nama jenis)
+            #         stg_jenis_fasilitas_rs (nama jenis)
             # ---------------------------------------------
 
             f"""
@@ -1741,15 +2089,13 @@ def create_kesehatan_tasks(
 
             ON DUPLICATE KEY UPDATE
                 nama_jenis_fasilitas = VALUES(nama_jenis_fasilitas),
-                nama_fasilitas = VALUES(nama_fasilitas),
-                sumber_database = VALUES(sumber_database),
-                waktu_load = VALUES(waktu_load);
+                nama_fasilitas       = VALUES(nama_fasilitas),
+                sumber_database      = VALUES(sumber_database),
+                waktu_load           = VALUES(waktu_load);
             """,
 
             # ---------------------------------------------
             # DIM TENAGA MEDIS (Type 1, grain = jenis)
-            # Sumber: stg_jenis_tenaga_medis +
-            # stg_kelompok_tenaga_medis (untuk kategori_profesi)
             # KTM001-KTM006 = Dokter, KTM007 = Perawat
             # ---------------------------------------------
 
@@ -1790,16 +2136,16 @@ def create_kesehatan_tasks(
                    k.id_kelompok_tenaga_medis
 
             ON DUPLICATE KEY UPDATE
-                nama_jenis_tenaga = VALUES(nama_jenis_tenaga),
+                nama_jenis_tenaga        = VALUES(nama_jenis_tenaga),
                 id_kelompok_tenaga_medis = VALUES(id_kelompok_tenaga_medis),
-                nama_kelompok = VALUES(nama_kelompok),
-                kategori_profesi = VALUES(kategori_profesi),
-                sumber_database = VALUES(sumber_database),
-                waktu_load = VALUES(waktu_load);
+                nama_kelompok            = VALUES(nama_kelompok),
+                kategori_profesi         = VALUES(kategori_profesi),
+                sumber_database          = VALUES(sumber_database),
+                waktu_load               = VALUES(waktu_load);
             """,
 
             # ---------------------------------------------
-            # DIM KELOMPOK UMUR (statis)
+            # DIM KELOMPOK UMUR (statis, INSERT IGNORE)
             # ---------------------------------------------
 
             f"""
@@ -1815,6 +2161,24 @@ def create_kesehatan_tasks(
                 (4, '25-44',  25,  44,   NOW()),
                 (5, '45-59',  45,  59,   NOW()),
                 (6, '60+',    60, 999,   NOW());
+            """,
+
+            # ---------------------------------------------
+            # DIM KETERSEDIAAN FASILITAS (target rasio, statis)
+            # Rumah Sakit  : 1 RS per 10.000 penduduk
+            # Puskesmas    : 1 puskesmas per 30.000 penduduk
+            # ---------------------------------------------
+
+            f"""
+            INSERT INTO `{dwh_db}`.`dim_kesehatan_ketersediaan_fasilitas`
+            (
+                jenis_fasilitas, rasio_penduduk
+            )
+            VALUES
+                ('Rumah Sakit', 10),
+                ('Puskesmas',   30)
+            ON DUPLICATE KEY UPDATE
+                rasio_penduduk = VALUES(rasio_penduduk);
             """,
         ]
 
@@ -1846,18 +2210,18 @@ def create_kesehatan_tasks(
                 CAST(DATE_FORMAT(c.tanggal_kasus, '%Y%m%d') AS UNSIGNED)
                     AS waktu_key,
 
-                drs.rs_key AS rs_key,
-                dpy.penyakit_key AS penyakit_key,
-                dpd.penduduk_key AS penduduk_key,
+                drs.rs_key        AS rs_key,
+                dpy.penyakit_key  AS penyakit_key,
+                dpd.penduduk_key  AS penduduk_key,
 
                 CASE
-                    WHEN c.umur IS NULL THEN -1
-                    WHEN c.umur BETWEEN 0 AND 4 THEN 1
+                    WHEN c.umur IS NULL          THEN -1
+                    WHEN c.umur BETWEEN 0 AND 4  THEN 1
                     WHEN c.umur BETWEEN 5 AND 14 THEN 2
                     WHEN c.umur BETWEEN 15 AND 24 THEN 3
                     WHEN c.umur BETWEEN 25 AND 44 THEN 4
                     WHEN c.umur BETWEEN 45 AND 59 THEN 5
-                    WHEN c.umur >= 60 THEN 6
+                    WHEN c.umur >= 60             THEN 6
                     ELSE -1
                 END AS kelompok_umur_key,
 
@@ -1902,14 +2266,14 @@ def create_kesehatan_tasks(
                 ON c.nik = dpd.nik
 
             ON DUPLICATE KEY UPDATE
-                waktu_key = VALUES(waktu_key),
-                penyakit_key = VALUES(penyakit_key),
-                penduduk_key = VALUES(penduduk_key),
+                waktu_key         = VALUES(waktu_key),
+                penyakit_key      = VALUES(penyakit_key),
+                penduduk_key      = VALUES(penduduk_key),
                 kelompok_umur_key = VALUES(kelompok_umur_key),
-                umur = VALUES(umur),
-                jumlah_kasus = VALUES(jumlah_kasus),
-                sumber_database = VALUES(sumber_database),
-                waktu_load = VALUES(waktu_load);
+                umur              = VALUES(umur),
+                jumlah_kasus      = VALUES(jumlah_kasus),
+                sumber_database   = VALUES(sumber_database),
+                waktu_load        = VALUES(waktu_load);
             """,
 
             # ---------------------------------------------
@@ -1948,11 +2312,11 @@ def create_kesehatan_tasks(
                 ON l.id_jenis_layanan_rs = dl.id_jenis_layanan_rs
 
             ON DUPLICATE KEY UPDATE
-                jumlah_layanan = VALUES(jumlah_layanan),
-                rs_key = VALUES(rs_key),
-                layanan_key = VALUES(layanan_key),
+                jumlah_layanan  = VALUES(jumlah_layanan),
+                rs_key          = VALUES(rs_key),
+                layanan_key     = VALUES(layanan_key),
                 sumber_database = VALUES(sumber_database),
-                waktu_load = VALUES(waktu_load);
+                waktu_load      = VALUES(waktu_load);
             """,
 
             # ---------------------------------------------
@@ -1980,9 +2344,9 @@ def create_kesehatan_tasks(
                 SELECT
                     CAST(DATE_FORMAT('{etl_date}', '%Y%m%d') AS UNSIGNED)
                         AS waktu_key,
-                    drs.rs_key AS rs_key,
+                    drs.rs_key      AS rs_key,
                     df.fasilitas_key AS fasilitas_key,
-                    SUM(f.jumlah) AS jumlah,
+                    SUM(f.jumlah)   AS jumlah,
                     MAX(f.sumber_database) AS sumber_database
 
                 FROM `{staging_db}`.`stg_fasilitas_rs` f
@@ -1992,21 +2356,21 @@ def create_kesehatan_tasks(
 
                 LEFT JOIN `{dwh_db}`.`dim_kesehatan_fasilitas` df
                     ON f.id_jenis_fasilitas = df.id_jenis_fasilitas
-                    AND f.nama_fasilitas = df.nama_fasilitas
+                    AND f.nama_fasilitas    = df.nama_fasilitas
 
                 GROUP BY waktu_key, rs_key, fasilitas_key
             ) a
 
             ON DUPLICATE KEY UPDATE
-                jumlah = VALUES(jumlah),
-                rs_key = VALUES(rs_key),
-                fasilitas_key = VALUES(fasilitas_key),
+                jumlah          = VALUES(jumlah),
+                rs_key          = VALUES(rs_key),
+                fasilitas_key   = VALUES(fasilitas_key),
                 sumber_database = VALUES(sumber_database),
-                waktu_load = VALUES(waktu_load);
+                waktu_load      = VALUES(waktu_load);
             """,
 
             # ---------------------------------------------
-            # FACT TENAGA MEDIS (snapshot, grain = jenis)
+            # FACT TENAGA MEDIS (snapshot, grain = jenis per RS)
             # Agregasi SUM(jumlah) per (rs, jenis tenaga).
             # ---------------------------------------------
 
@@ -2031,7 +2395,7 @@ def create_kesehatan_tasks(
                 SELECT
                     CAST(DATE_FORMAT('{etl_date}', '%Y%m%d') AS UNSIGNED)
                         AS waktu_key,
-                    drs.rs_key AS rs_key,
+                    drs.rs_key    AS rs_key,
                     dt.tenaga_key AS tenaga_key,
                     SUM(t.jumlah) AS jumlah_tenaga,
                     MAX(t.sumber_database) AS sumber_database
@@ -2049,11 +2413,90 @@ def create_kesehatan_tasks(
             ) a
 
             ON DUPLICATE KEY UPDATE
-                jumlah_tenaga = VALUES(jumlah_tenaga),
-                rs_key = VALUES(rs_key),
-                tenaga_key = VALUES(tenaga_key),
+                jumlah_tenaga   = VALUES(jumlah_tenaga),
+                rs_key          = VALUES(rs_key),
+                tenaga_key      = VALUES(tenaga_key),
                 sumber_database = VALUES(sumber_database),
-                waktu_load = VALUES(waktu_load);
+                waktu_load      = VALUES(waktu_load);
+            """,
+
+            # ---------------------------------------------
+            # FACT KETERSEDIAAN FASILITAS
+            # grain: wilayah x waktu (snapshot per ETL date)
+            #
+            # jumlah_penduduk   -> COUNT(DISTINCT nik) per kab/kota
+            #                      dari data kependudukan (dukcapil)
+            # jumlah_rs_aktual  -> COUNT(DISTINCT id_rs) per kab/kota
+            #                      dari stg_rs
+            # jumlah_puskesmas  -> COUNT(DISTINCT id_puskesmas) per kab/kota
+            #                      dari stg_puskesmas
+            # ---------------------------------------------
+
+            f"""
+            INSERT INTO `{dwh_db}`.`fact_kesehatan_ketersediaan_fasilitas`
+            (
+                wilayah_kesehatan_key, waktu_key,
+                jumlah_penduduk, jumlah_rs_aktual, jumlah_puskesmas_aktual,
+                sumber_database, waktu_load
+            )
+
+            SELECT
+                w.wilayah_kesehatan_key,
+                CAST(DATE_FORMAT('{etl_date}', '%Y%m%d') AS UNSIGNED)
+                    AS waktu_key,
+                COALESCE(pd.jumlah_penduduk,    0) AS jumlah_penduduk,
+                COALESCE(rs.jumlah_rs,          0) AS jumlah_rs_aktual,
+                COALESCE(pk.jumlah_puskesmas,   0) AS jumlah_puskesmas_aktual,
+                w.sumber_database,
+                NOW()
+
+            FROM `{dwh_db}`.`dim_kesehatan_wilayah` w
+
+            -- Jumlah penduduk per kab/kota dari pipeline dukcapil
+            LEFT JOIN
+            (
+                SELECT
+                    sk.id_kabupaten_kota,
+                    COUNT(DISTINCT sp.nik) AS jumlah_penduduk
+                FROM `{staging_db}`.`stg_penduduk` AS sp
+                JOIN `{staging_db}`.`stg_alamat` AS sa
+                    ON sp.id_alamat = sa.id_alamat
+                JOIN `{staging_db}`.`stg_desa` AS sd
+                    ON sa.id_desa = sd.id_desa
+                JOIN `{staging_db}`.`stg_kecamatan` AS sk
+                    ON sd.id_kecamatan = sk.id_kecamatan
+                GROUP BY sk.id_kabupaten_kota
+            ) pd
+                ON pd.id_kabupaten_kota = w.id_kabupaten_kota
+
+            -- Jumlah RS aktual per kab/kota
+            LEFT JOIN
+            (
+                SELECT
+                    id_kabupaten_kota,
+                    COUNT(DISTINCT id_rs) AS jumlah_rs
+                FROM `{staging_db}`.`stg_rs`
+                GROUP BY id_kabupaten_kota
+            ) rs
+                ON rs.id_kabupaten_kota = w.id_kabupaten_kota
+
+            -- Jumlah puskesmas aktual per kab/kota
+            LEFT JOIN
+            (
+                SELECT
+                    id_kabupaten_kota,
+                    COUNT(DISTINCT id_puskesmas) AS jumlah_puskesmas
+                FROM `{staging_db}`.`stg_puskesmas`
+                GROUP BY id_kabupaten_kota
+            ) pk
+                ON pk.id_kabupaten_kota = w.id_kabupaten_kota
+
+            ON DUPLICATE KEY UPDATE
+                jumlah_penduduk         = VALUES(jumlah_penduduk),
+                jumlah_rs_aktual        = VALUES(jumlah_rs_aktual),
+                jumlah_puskesmas_aktual = VALUES(jumlah_puskesmas_aktual),
+                sumber_database         = VALUES(sumber_database),
+                waktu_load              = VALUES(waktu_load);
             """,
         ]
 
@@ -2065,12 +2508,12 @@ def create_kesehatan_tasks(
     # WIRING (urutan: extract >> basic >> rs >> pasien >> kasus >> load)
     # ========================================================
 
-    t1 = extract_to_raw()
+    t1  = extract_to_raw()
     t2a = transform_dimension_basic()
     t2b = transform_rs_family()
     t2c = transform_pasien()
     t2d = transform_kasus_reject()
-    t3 = load_to_dwh()
+    t3  = load_to_dwh()
 
     # Sequential: extract -> basic -> rs -> pasien -> kasus -> load
     t1 >> t2a >> t2b >> t2c >> t2d >> t3
