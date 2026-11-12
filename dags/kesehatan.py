@@ -1118,38 +1118,6 @@ def create_kesehatan_tasks(
                 AND TRIM(nama_penyakit) <> '';
             """,
 
-            # =================================================
-            # PUSKESMAS
-            # Asumsi kolom API: id_puskesmas, nama_puskesmas,
-            # alamat, telepon, id_kabupaten_kota
-            # =================================================
-
-            f"""
-            DROP TABLE IF EXISTS
-            `{staging_db}`.`stg_puskesmas`;
-            """,
-
-            f"""
-            CREATE TABLE `{staging_db}`.`stg_puskesmas`
-            (
-                id BIGINT NOT NULL AUTO_INCREMENT PRIMARY KEY
-            ) AS
-
-            SELECT DISTINCT
-                TRIM(id_puskesmas) AS id_puskesmas,
-                TRIM(id_kabupaten_kota) AS id_kabupaten_kota,
-                NULLIF(TRIM(nama_puskesmas), '') AS nama_puskesmas,
-                NULLIF(TRIM(alamat), '') AS alamat,
-                NULLIF(TRIM(telepon), '') AS telepon,
-                sumber_database,
-                waktu_ekstraksi
-
-            FROM `{raw_db}`.`raw_puskesmas`
-
-            WHERE
-                id_puskesmas IS NOT NULL
-                AND TRIM(nama_puskesmas) <> '';
-            """,
         ]
 
         transformations += [
@@ -1401,6 +1369,18 @@ def create_kesehatan_tasks(
                 TRIM(k.id_penyakit) AS id_penyakit,
                 TRIM(k.id_pasien) AS id_pasien,
                 k.tanggal_kasus,
+
+                CASE
+                    WHEN TRIM(k.tanggal_keluar)
+                        REGEXP '^[0-9]{{4}}-[0-9]{{2}}-[0-9]{{2}}$'
+                        AND TRIM(k.tanggal_keluar) >= TRIM(k.tanggal_kasus)
+                        AND TRIM(k.tanggal_keluar) <= '{etl_date}'
+                    THEN CAST(TRIM(k.tanggal_keluar) AS DATE)
+                    ELSE NULL
+                END AS tanggal_keluar,
+
+                NULLIF(TRIM(k.status_akhir), '') AS status_akhir,
+
                 k.sumber_database,
                 k.waktu_ekstraksi
 
@@ -1572,6 +1552,47 @@ FROM `{staging_db}`.`stg_kesehatan_rs` r
             """,
         ]
 
+        # ------------------------------------------------
+        # Migrasi kolom staging (tabel lama belum punya
+        # tanggal_keluar & status_akhir)
+        # ------------------------------------------------
+
+        hook = get_mysql_hook()
+        schema_conn = hook.get_conn()
+        schema_cursor = schema_conn.cursor()
+
+        try:
+            schema_cursor.execute(
+                """
+                SELECT column_name
+                FROM information_schema.columns
+                WHERE table_schema = %s
+                  AND table_name = 'stg_kesehatan_kasus_penyakit_rs'
+                """,
+                (staging_db,),
+            )
+            existing_stg_columns = {
+                row[0] for row in schema_cursor.fetchall()
+            }
+        finally:
+            schema_cursor.close()
+            schema_conn.close()
+
+        staging_column_defs = {
+            "tanggal_keluar": "DATE NULL",
+            "status_akhir": "VARCHAR(50) NULL",
+        }
+
+        if existing_stg_columns:
+            transformations += [
+                f"""
+                ALTER TABLE `{staging_db}`.`stg_kesehatan_kasus_penyakit_rs`
+                ADD COLUMN `{name}` {definition};
+                """
+                for name, definition in staging_column_defs.items()
+                if name not in existing_stg_columns
+            ]
+
         transformations += [
             f"""
             CREATE TABLE IF NOT EXISTS `{staging_db}`.`stg_kesehatan_kasus_penyakit_rs`
@@ -1583,7 +1604,11 @@ FROM `{staging_db}`.`stg_kesehatan_rs` r
             """,
             f"""
             INSERT INTO `{staging_db}`.`stg_kesehatan_kasus_penyakit_rs`
-            SELECT t.*
+            (id_kasus, id_rs, id_penyakit, id_pasien, tanggal_kasus,
+             tanggal_keluar, status_akhir, sumber_database, waktu_ekstraksi)
+            SELECT
+                id_kasus, id_rs, id_penyakit, id_pasien, tanggal_kasus,
+                tanggal_keluar, status_akhir, sumber_database, waktu_ekstraksi
             FROM `{staging_db}`.`_load_stg_kesehatan_kasus_penyakit_rs` t;
             """,
             f"""
@@ -1732,6 +1757,7 @@ FROM `{staging_db}`.`stg_kesehatan_reject`
                 f"DROP TABLE IF EXISTS `{dwh_db}`.`fact_kesehatan_tenaga_medis`;",
                 f"DROP TABLE IF EXISTS `{dwh_db}`.`fact_kesehatan_ketersediaan_fasilitas`;",
                 f"DROP TABLE IF EXISTS `{dwh_db}`.`dim_kesehatan_rs`;",
+                f"DROP TABLE IF EXISTS `{dwh_db}`.`dim_kesehatan_wilayah`;",
             ]
             execute_sql(migration_wilayah)
             logging.info(
@@ -1764,6 +1790,33 @@ FROM `{staging_db}`.`stg_kesehatan_reject`
                 sumber_database VARCHAR(255),
                 waktu_load DATETIME NOT NULL,
                 UNIQUE KEY uk_puskesmas (id_puskesmas)
+            );
+            """,
+
+            # ---------------------------------------------
+            # DIM WILAYAH KESEHATAN (kab/kota + provinsi)
+            # Sumber: stg_kesehatan_kabupaten_kota + stg_kesehatan_provinsi
+            # ---------------------------------------------
+
+            f"""
+            CREATE TABLE IF NOT EXISTS
+            `{dwh_db}`.`dim_kesehatan_wilayah`
+            (
+                wilayah_kesehatan_key INT AUTO_INCREMENT PRIMARY KEY,
+
+                id_kabupaten_kota VARCHAR(20) NOT NULL,
+                nama_kabupaten_kota VARCHAR(150),
+                id_provinsi VARCHAR(20),
+                nama_provinsi VARCHAR(150),
+
+                sumber_database VARCHAR(255),
+                waktu_load DATETIME NOT NULL,
+
+                UNIQUE KEY uk_wilayah_kesehatan
+                    (id_kabupaten_kota),
+
+                KEY idx_wilayah_kesehatan_provinsi
+                    (id_provinsi)
             );
             """,
 
@@ -1984,6 +2037,9 @@ FROM `{staging_db}`.`stg_kesehatan_reject`
                 umur INT,
                 jumlah_kasus INT DEFAULT 1,
 
+                tanggal_keluar DATE,
+                status_akhir VARCHAR(50),
+
                 sumber_database VARCHAR(255),
                 waktu_load DATETIME NOT NULL,
 
@@ -2136,6 +2192,10 @@ FROM `{staging_db}`.`stg_kesehatan_reject`
             "dim_kesehatan_puskesmas": {
                 "id_kabupaten_kota": "VARCHAR(20)",
             },
+            "fact_kesehatan_kasus_penyakit": {
+                "tanggal_keluar": "DATE",
+                "status_akhir": "VARCHAR(50)",
+            },
         }
         for table_name, missing_columns in table_columns.items():
             schema_cursor = hook.get_conn().cursor()
@@ -2217,6 +2277,40 @@ FROM `{staging_db}`.`stg_kesehatan_reject`
         # ====================================================
 
         load_dimensions = [
+
+            # ---------------------------------------------
+            # DIM WILAYAH KESEHATAN (Type 1)
+            # Sumber: stg_kesehatan_kabupaten_kota + stg_kesehatan_provinsi
+            # ---------------------------------------------
+
+            f"""
+            INSERT INTO `{dwh_db}`.`dim_kesehatan_wilayah`
+            (
+                id_kabupaten_kota, nama_kabupaten_kota,
+                id_provinsi, nama_provinsi,
+                sumber_database, waktu_load
+            )
+
+            SELECT
+                k.id_kabupaten_kota,
+                k.nama_kabupaten_kota,
+                k.id_provinsi,
+                p.nama_provinsi,
+                k.sumber_database,
+                NOW()
+
+            FROM `{staging_db}`.`stg_kesehatan_kabupaten_kota` k
+
+            LEFT JOIN `{staging_db}`.`stg_kesehatan_provinsi` p
+                ON k.id_provinsi = p.id_provinsi
+
+            ON DUPLICATE KEY UPDATE
+                nama_kabupaten_kota = VALUES(nama_kabupaten_kota),
+                id_provinsi         = VALUES(id_provinsi),
+                nama_provinsi       = VALUES(nama_provinsi),
+                sumber_database     = VALUES(sumber_database),
+                waktu_load          = VALUES(waktu_load);
+            """,
 
             # ---------------------------------------------
             # DIM PUSKESMAS (Type 1)
@@ -2313,7 +2407,7 @@ FROM `{staging_db}`.`stg_kesehatan_reject`
                 p.sumber_database,
                 NOW()
 
-            FROM `{staging_db}`.`stg_puskesmas` p
+            FROM `{staging_db}`.`stg_kesehatan_puskesmas` p
 
             LEFT JOIN `{dwh_db}`.`dim_kesehatan_wilayah` w
                 ON p.id_kabupaten_kota = w.id_kabupaten_kota
@@ -2527,6 +2621,7 @@ FROM `{staging_db}`.`stg_kesehatan_reject`
                 id_kasus, waktu_key,
                 rs_key, penyakit_key, penduduk_key, kelompok_umur_key,
                 umur, jumlah_kasus,
+                tanggal_keluar, status_akhir,
                 sumber_database, waktu_load
             )
 
@@ -2553,6 +2648,8 @@ FROM `{staging_db}`.`stg_kesehatan_reject`
 
                 c.umur,
                 1 AS jumlah_kasus,
+                c.tanggal_keluar,
+                c.status_akhir,
                 c.sumber_database,
                 NOW()
 
@@ -2563,6 +2660,8 @@ FROM `{staging_db}`.`stg_kesehatan_reject`
                     k.id_rs,
                     k.id_penyakit,
                     k.tanggal_kasus,
+                    k.tanggal_keluar,
+                    k.status_akhir,
                     k.sumber_database,
                     s.nik,
 
@@ -2598,6 +2697,8 @@ FROM `{staging_db}`.`stg_kesehatan_reject`
                 kelompok_umur_key = VALUES(kelompok_umur_key),
                 umur              = VALUES(umur),
                 jumlah_kasus      = VALUES(jumlah_kasus),
+                tanggal_keluar    = VALUES(tanggal_keluar),
+                status_akhir      = VALUES(status_akhir),
                 sumber_database   = VALUES(sumber_database),
                 waktu_load        = VALUES(waktu_load);
             """,
@@ -2753,9 +2854,9 @@ FROM `{staging_db}`.`stg_kesehatan_reject`
             # jumlah_penduduk   -> COUNT(DISTINCT nik) per kab/kota
             #                      dari data kependudukan (dukcapil)
             # jumlah_rs_aktual  -> COUNT(DISTINCT id_rs) per kab/kota
-            #                      dari stg_rs
+            #                      dari stg_kesehatan_rs
             # jumlah_puskesmas  -> COUNT(DISTINCT id_puskesmas) per kab/kota
-            #                      dari stg_puskesmas
+            #                      dari stg_kesehatan_puskesmas
             # ---------------------------------------------
 
             f"""
@@ -2784,12 +2885,12 @@ FROM `{staging_db}`.`stg_kesehatan_reject`
                 SELECT
                     sk.id_kabupaten_kota,
                     COUNT(DISTINCT sp.nik) AS jumlah_penduduk
-                FROM `{staging_db}`.`stg_penduduk` AS sp
-                JOIN `{staging_db}`.`stg_alamat` AS sa
+                FROM `{staging_db}`.`stg_dukcapil_penduduk` AS sp
+                JOIN `{staging_db}`.`stg_dukcapil_alamat` AS sa
                     ON sp.id_alamat = sa.id_alamat
-                JOIN `{staging_db}`.`stg_desa` AS sd
+                JOIN `{staging_db}`.`stg_dukcapil_desa` AS sd
                     ON sa.id_desa = sd.id_desa
-                JOIN `{staging_db}`.`stg_kecamatan` AS sk
+                JOIN `{staging_db}`.`stg_dukcapil_kecamatan` AS sk
                     ON sd.id_kecamatan = sk.id_kecamatan
                 GROUP BY sk.id_kabupaten_kota
             ) pd
@@ -2801,7 +2902,7 @@ FROM `{staging_db}`.`stg_kesehatan_reject`
                 SELECT
                     id_kabupaten_kota,
                     COUNT(DISTINCT id_rs) AS jumlah_rs
-                FROM `{staging_db}`.`stg_rs`
+                FROM `{staging_db}`.`stg_kesehatan_rs`
                 GROUP BY id_kabupaten_kota
             ) rs
                 ON rs.id_kabupaten_kota = w.id_kabupaten_kota
@@ -2812,7 +2913,7 @@ FROM `{staging_db}`.`stg_kesehatan_reject`
                 SELECT
                     id_kabupaten_kota,
                     COUNT(DISTINCT id_puskesmas) AS jumlah_puskesmas
-                FROM `{staging_db}`.`stg_puskesmas`
+                FROM `{staging_db}`.`stg_kesehatan_puskesmas`
                 GROUP BY id_kabupaten_kota
             ) pk
                 ON pk.id_kabupaten_kota = w.id_kabupaten_kota
