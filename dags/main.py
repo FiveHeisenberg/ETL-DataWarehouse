@@ -40,28 +40,28 @@ PIPELINE_TASKS = [
     {
         "name": "dukcapil",
         "create_tasks": create_dukcapil_tasks,
-        "api_base_url": "http://192.168.222.152:8000/api",
+        "api_base_url": "http://192.168.222.152:8010/api",
     },
-    {
-        "name": "disnaker",
-        "create_tasks": create_disnaker_tasks,
-        "api_base_url": "http://192.168.222.122:8000/api",
-    },  
-    {
-        "name": "dispenda",
-        "create_tasks": create_dispenda_tasks,
-        "api_base_url": "http://192.168.222.154:8000/api",
-    },
-    {
-        "name": "pendidikan",
-        "create_tasks": create_pendidikan_tasks,
-        "api_base_url": "http://192.168.222.180:5000/api",
-    },
-    {
-        "name": "dinsos",
-        "create_tasks": create_dinsos_tasks,
-        "api_base_url": "http://192.168.222.205:8000/api",
-    },
+    # {
+    #     "name": "disnaker",
+    #     "create_tasks": create_disnaker_tasks,
+    #     "api_base_url": "http://192.168.222.122:8000/api",
+    # },  
+    # {
+    #     "name": "dispenda",
+    #     "create_tasks": create_dispenda_tasks,
+    #     "api_base_url": "http://192.168.222.154:8000/api",
+    # },
+    # {
+    #     "name": "pendidikan",
+    #     "create_tasks": create_pendidikan_tasks,
+    #     "api_base_url": "http://192.168.222.180:5000/api",
+    # },
+    # {
+    #     "name": "dinsos",
+    #     "create_tasks": create_dinsos_tasks,
+    #     "api_base_url": "http://192.168.222.205:8000/api",
+    # },
     {
         'name': 'kesehatan',
         "create_tasks": create_kesehatan_tasks,
@@ -100,6 +100,7 @@ def execute_sql(statements):
     cursor = conn.cursor()
 
     try:
+        cursor.execute("SET SESSION sql_require_primary_key = 0")
         for statement in statements:
             if statement.strip():
                 cursor.execute(statement)

@@ -337,19 +337,34 @@ def create_pangan_tasks(
             f"{expr} AS `{alias}`" for alias, expr in cols
         )
         outer = ", ".join(f"x.`{alias}`" for alias, _ in cols)
+        staging_table = f"stg_pangan_{name}"
+        load_table = f"_load_{staging_table}"
+        column_list = ", ".join(
+            f"`{alias}`" for alias, _ in cols
+        )
+        column_defs = ",\n                ".join(
+            f"`{alias}` VARCHAR(500)" for alias, _ in cols
+        )
 
         return [
             f"""
             DROP TABLE IF EXISTS
-            `{staging_db}`.`stg_pangan_{name}`;
+            `{staging_db}`.`{load_table}`;
             """,
 
             f"""
-            CREATE TABLE `{staging_db}`.`stg_pangan_{name}`
+            CREATE TABLE `{staging_db}`.`{load_table}`
             (
-                id BIGINT NOT NULL AUTO_INCREMENT PRIMARY KEY
-            ) AS
+                id BIGINT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+                {column_defs},
+                `sumber_database` VARCHAR(100),
+                `waktu_ekstraksi` DATETIME
+            );
+            """,
 
+            f"""
+            INSERT INTO `{staging_db}`.`{load_table}`
+            ({column_list}, sumber_database, waktu_ekstraksi)
             SELECT DISTINCT
                 {outer},
                 x.sumber_database,
@@ -367,6 +382,27 @@ def create_pangan_tasks(
 
             WHERE
                 {where};
+            """,
+
+            f"""
+            CREATE TABLE IF NOT EXISTS `{staging_db}`.`{staging_table}`
+            LIKE `{staging_db}`.`{load_table}`;
+            """,
+
+            f"""
+            DELETE FROM `{staging_db}`.`{staging_table}`
+            WHERE YEAR(waktu_ekstraksi) = YEAR(CURDATE());
+            """,
+
+            f"""
+            INSERT INTO `{staging_db}`.`{staging_table}`
+            ({column_list}, sumber_database, waktu_ekstraksi)
+            SELECT {column_list}, sumber_database, waktu_ekstraksi
+            FROM `{staging_db}`.`{load_table}`;
+            """,
+
+            f"""
+            DROP TABLE `{staging_db}`.`{load_table}`;
             """,
         ]
 

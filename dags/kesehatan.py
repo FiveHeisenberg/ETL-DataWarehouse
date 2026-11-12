@@ -10,11 +10,11 @@ from airflow.sdk import task
 
 
 """
-DNS KESEHATAN (RUMAH SAKIT) — ETL API db_kemenkes -> raw_data -> staging_area -> dwh
+DNS KESEHATAN (RUMAH SAKIT) — ETL API db_kemenkes -> raw_kesehatan_data -> staging_area -> dwh
 
 Pipeline mengikuti pola dukcapil.py:
-- extract_to_raw   : REST API -> schema raw_data (satu tabel per endpoint)
-- transform_staging: raw_data -> schema staging_area (cleansing/standardisasi/validasi)
+- extract_to_raw   : REST API -> schema raw_kesehatan_data (satu tabel per endpoint)
+- transform_staging: raw_kesehatan_data -> schema staging_area (cleansing/standardisasi/validasi)
 - load_to_dwh      : staging_area -> schema dwh (bintang/snowflake, SCD Type 2 untuk dim_kesehatan_rs)
 
 Sumber: http://192.168.222.152:8011/api/kemenkes/{endpoint}
@@ -45,6 +45,7 @@ SOURCE_ENDPOINTS = {
     "pemilik_rs":            "/pemilik-rs",
     "jenis_rs":              "/jenis-rs",
     "rs":                    "/rs",
+    "puskesmas":              "/puskesmas",
     "jenis_layanan_rs":      "/jenis-layanan-rs",
     "layanan_rs":            "/layanan-rs",
     "jenis_fasilitas_rs":    "/jenis-fasilitas-rs",
@@ -215,8 +216,8 @@ def create_kesehatan_tasks(
 ):
     """
     execute_sql    : helper untuk menjalankan list query SQL (didefinisikan di main.py)
-    get_mysql_hook : helper koneksi ke server raw_data & staging_area
-    raw_db         : nama database raw_data
+    get_mysql_hook : helper koneksi ke server raw_kesehatan_data & staging_area
+    raw_db         : nama database raw_kesehatan_data
     staging_db     : nama database staging_area
     dwh_db         : nama database dwh
     api_base_url   : base URL API sumber kesehatan (mis. http://host:8011/api/kemenkes)
@@ -225,7 +226,7 @@ def create_kesehatan_tasks(
     # ========================================================
     # TASK 1: EXTRACT API -> RAW_DATA
     # ========================================================
-    # Menyalin data API apa adanya (mirror) ke `raw_<endpoint>` beserta
+    # Menyalin data API apa adanya (mirror) ke `raw_kesehatan_<endpoint>` beserta
     # kolom sumber_database (URL API) dan waktu_ekstraksi (WIB).
 
     @task
@@ -239,7 +240,7 @@ def create_kesehatan_tasks(
 
             for table_name, endpoint in SOURCE_ENDPOINTS.items():
 
-                raw_table = f"raw_{table_name}"
+                raw_table = f"raw_kesehatan_{table_name}"
 
                 logging.info(
                     "Extract API %s -> %s.%s",
@@ -384,14 +385,12 @@ def create_kesehatan_tasks(
 
             f"""
             DROP TABLE IF EXISTS
-            `{staging_db}`.`stg_provinsi`;
+            `{staging_db}`.`_load_stg_kesehatan_provinsi`;
             """,
 
             f"""
-            CREATE TABLE `{staging_db}`.`stg_provinsi`
-            (
-                id BIGINT NOT NULL AUTO_INCREMENT PRIMARY KEY
-            ) AS
+            CREATE TABLE `{staging_db}`.`_load_stg_kesehatan_provinsi`
+            AS
 
             SELECT DISTINCT
                 TRIM(id_provinsi) AS id_provinsi,
@@ -399,7 +398,7 @@ def create_kesehatan_tasks(
                 sumber_database,
                 waktu_ekstraksi
 
-            FROM `{raw_db}`.`raw_provinsi`
+            FROM `{raw_db}`.`raw_kesehatan_provinsi`
 
             WHERE
                 id_provinsi IS NOT NULL
@@ -412,14 +411,12 @@ def create_kesehatan_tasks(
 
             f"""
             DROP TABLE IF EXISTS
-            `{staging_db}`.`stg_kabupaten_kota`;
+            `{staging_db}`.`_load_stg_kesehatan_kabupaten_kota`;
             """,
 
             f"""
-            CREATE TABLE `{staging_db}`.`stg_kabupaten_kota`
-            (
-                id BIGINT NOT NULL AUTO_INCREMENT PRIMARY KEY
-            ) AS
+            CREATE TABLE `{staging_db}`.`_load_stg_kesehatan_kabupaten_kota`
+            AS
 
             SELECT DISTINCT
                 TRIM(id_kabupaten_kota) AS id_kabupaten_kota,
@@ -428,7 +425,7 @@ def create_kesehatan_tasks(
                 sumber_database,
                 waktu_ekstraksi
 
-            FROM `{raw_db}`.`raw_kabupaten_kota`
+            FROM `{raw_db}`.`raw_kesehatan_kabupaten_kota`
 
             WHERE
                 id_kabupaten_kota IS NOT NULL
@@ -441,14 +438,12 @@ def create_kesehatan_tasks(
 
             f"""
             DROP TABLE IF EXISTS
-            `{staging_db}`.`stg_kelas_rs`;
+            `{staging_db}`.`_load_stg_kesehatan_kelas_rs`;
             """,
 
             f"""
-            CREATE TABLE `{staging_db}`.`stg_kelas_rs`
-            (
-                id BIGINT NOT NULL AUTO_INCREMENT PRIMARY KEY
-            ) AS
+            CREATE TABLE `{staging_db}`.`_load_stg_kesehatan_kelas_rs`
+            AS
 
             SELECT DISTINCT
                 TRIM(id_kelas_rs) AS id_kelas_rs,
@@ -456,7 +451,7 @@ def create_kesehatan_tasks(
                 sumber_database,
                 waktu_ekstraksi
 
-            FROM `{raw_db}`.`raw_kelas_rs`
+            FROM `{raw_db}`.`raw_kesehatan_kelas_rs`
 
             WHERE id_kelas_rs IS NOT NULL;
             """,
@@ -467,14 +462,12 @@ def create_kesehatan_tasks(
 
             f"""
             DROP TABLE IF EXISTS
-            `{staging_db}`.`stg_pemilik_rs`;
+            `{staging_db}`.`_load_stg_kesehatan_pemilik_rs`;
             """,
 
             f"""
-            CREATE TABLE `{staging_db}`.`stg_pemilik_rs`
-            (
-                id BIGINT NOT NULL AUTO_INCREMENT PRIMARY KEY
-            ) AS
+            CREATE TABLE `{staging_db}`.`_load_stg_kesehatan_pemilik_rs`
+            AS
 
             SELECT DISTINCT
                 TRIM(id_pemilik_rs) AS id_pemilik_rs,
@@ -482,7 +475,7 @@ def create_kesehatan_tasks(
                 sumber_database,
                 waktu_ekstraksi
 
-            FROM `{raw_db}`.`raw_pemilik_rs`
+            FROM `{raw_db}`.`raw_kesehatan_pemilik_rs`
 
             WHERE id_pemilik_rs IS NOT NULL;
             """,
@@ -493,14 +486,12 @@ def create_kesehatan_tasks(
 
             f"""
             DROP TABLE IF EXISTS
-            `{staging_db}`.`stg_jenis_rs`;
+            `{staging_db}`.`_load_stg_kesehatan_jenis_rs`;
             """,
 
             f"""
-            CREATE TABLE `{staging_db}`.`stg_jenis_rs`
-            (
-                id BIGINT NOT NULL AUTO_INCREMENT PRIMARY KEY
-            ) AS
+            CREATE TABLE `{staging_db}`.`_load_stg_kesehatan_jenis_rs`
+            AS
 
             SELECT DISTINCT
                 TRIM(id_jenis_rs) AS id_jenis_rs,
@@ -508,7 +499,7 @@ def create_kesehatan_tasks(
                 sumber_database,
                 waktu_ekstraksi
 
-            FROM `{raw_db}`.`raw_jenis_rs`
+            FROM `{raw_db}`.`raw_kesehatan_jenis_rs`
 
             WHERE id_jenis_rs IS NOT NULL;
             """,
@@ -519,14 +510,12 @@ def create_kesehatan_tasks(
 
             f"""
             DROP TABLE IF EXISTS
-            `{staging_db}`.`stg_jenis_layanan_rs`;
+            `{staging_db}`.`_load_stg_kesehatan_jenis_layanan_rs`;
             """,
 
             f"""
-            CREATE TABLE `{staging_db}`.`stg_jenis_layanan_rs`
-            (
-                id BIGINT NOT NULL AUTO_INCREMENT PRIMARY KEY
-            ) AS
+            CREATE TABLE `{staging_db}`.`_load_stg_kesehatan_jenis_layanan_rs`
+            AS
 
             SELECT DISTINCT
                 TRIM(id_jenis_layanan_rs) AS id_jenis_layanan_rs,
@@ -534,7 +523,7 @@ def create_kesehatan_tasks(
                 sumber_database,
                 waktu_ekstraksi
 
-            FROM `{raw_db}`.`raw_jenis_layanan_rs`
+            FROM `{raw_db}`.`raw_kesehatan_jenis_layanan_rs`
 
             WHERE id_jenis_layanan_rs IS NOT NULL;
             """,
@@ -545,14 +534,12 @@ def create_kesehatan_tasks(
 
             f"""
             DROP TABLE IF EXISTS
-            `{staging_db}`.`stg_jenis_fasilitas_rs`;
+            `{staging_db}`.`_load_stg_kesehatan_jenis_fasilitas_rs`;
             """,
 
             f"""
-            CREATE TABLE `{staging_db}`.`stg_jenis_fasilitas_rs`
-            (
-                id BIGINT NOT NULL AUTO_INCREMENT PRIMARY KEY
-            ) AS
+            CREATE TABLE `{staging_db}`.`_load_stg_kesehatan_jenis_fasilitas_rs`
+            AS
 
             SELECT DISTINCT
                 TRIM(id_jenis_fasilitas) AS id_jenis_fasilitas,
@@ -560,7 +547,7 @@ def create_kesehatan_tasks(
                 sumber_database,
                 waktu_ekstraksi
 
-            FROM `{raw_db}`.`raw_jenis_fasilitas_rs`
+            FROM `{raw_db}`.`raw_kesehatan_jenis_fasilitas_rs`
 
             WHERE id_jenis_fasilitas IS NOT NULL;
             """,
@@ -571,14 +558,12 @@ def create_kesehatan_tasks(
 
             f"""
             DROP TABLE IF EXISTS
-            `{staging_db}`.`stg_kategori_penyakit`;
+            `{staging_db}`.`_load_stg_kesehatan_kategori_penyakit`;
             """,
 
             f"""
-            CREATE TABLE `{staging_db}`.`stg_kategori_penyakit`
-            (
-                id BIGINT NOT NULL AUTO_INCREMENT PRIMARY KEY
-            ) AS
+            CREATE TABLE `{staging_db}`.`_load_stg_kesehatan_kategori_penyakit`
+            AS
 
             SELECT DISTINCT
                 TRIM(id_kategori_penyakit) AS id_kategori_penyakit,
@@ -586,9 +571,212 @@ def create_kesehatan_tasks(
                 sumber_database,
                 waktu_ekstraksi
 
-            FROM `{raw_db}`.`raw_kategori_penyakit`
+            FROM `{raw_db}`.`raw_kesehatan_kategori_penyakit`
 
             WHERE id_kategori_penyakit IS NOT NULL;
+            """,
+        ]
+
+        transformations += [
+            f"""
+            DROP TABLE IF EXISTS `{staging_db}`.`_load_stg_kesehatan_kelompok_tenaga_medis`;
+            """,
+            f"""
+            CREATE TABLE `{staging_db}`.`_load_stg_kesehatan_kelompok_tenaga_medis` AS
+            SELECT DISTINCT
+                TRIM(id_kelompok_tenaga_medis) AS id_kelompok_tenaga_medis,
+                NULLIF(TRIM(nama_kelompok), '') AS nama_kelompok,
+                sumber_database,
+                waktu_ekstraksi
+            FROM `{raw_db}`.`raw_kesehatan_kelompok_tenaga_medis`
+            WHERE id_kelompok_tenaga_medis IS NOT NULL;
+            """,
+            f"""
+            ALTER TABLE `{staging_db}`.`_load_stg_kesehatan_kelompok_tenaga_medis`
+            ADD COLUMN id BIGINT NOT NULL AUTO_INCREMENT PRIMARY KEY;
+            """,
+            f"""
+            CREATE TABLE IF NOT EXISTS `{staging_db}`.`stg_kesehatan_kelompok_tenaga_medis`
+            LIKE `{staging_db}`.`_load_stg_kesehatan_kelompok_tenaga_medis`;
+            """,
+            f"""
+            DELETE FROM `{staging_db}`.`stg_kesehatan_kelompok_tenaga_medis`
+            WHERE YEAR(waktu_ekstraksi) = YEAR(CURDATE());
+            """,
+            f"""
+            INSERT INTO `{staging_db}`.`stg_kesehatan_kelompok_tenaga_medis`
+            (id_kelompok_tenaga_medis, nama_kelompok, sumber_database, waktu_ekstraksi)
+            SELECT id_kelompok_tenaga_medis, nama_kelompok, sumber_database, waktu_ekstraksi
+            FROM `{staging_db}`.`_load_stg_kesehatan_kelompok_tenaga_medis`;
+            """,
+            f"""
+            DROP TABLE `{staging_db}`.`_load_stg_kesehatan_kelompok_tenaga_medis`;
+            """,
+        ]
+
+        basic_dimensions = [
+            "provinsi",
+            "kabupaten_kota",
+            "kelas_rs",
+            "pemilik_rs",
+            "jenis_rs",
+            "jenis_layanan_rs",
+            "jenis_fasilitas_rs",
+            "kategori_penyakit",
+        ]
+
+        for dimension in basic_dimensions:
+            load_table = f"_load_stg_kesehatan_{dimension}"
+            final_table = f"stg_kesehatan_{dimension}"
+            transformations.append(
+                f"""
+                ALTER TABLE `{staging_db}`.`{load_table}`
+                ADD COLUMN id BIGINT NOT NULL AUTO_INCREMENT PRIMARY KEY;
+                """
+            )
+            transformations.append(
+                f"""
+                CREATE TABLE IF NOT EXISTS `{staging_db}`.`{final_table}`
+                LIKE `{staging_db}`.`{load_table}`;
+                """
+            )
+
+        transformations += [
+            f"""
+            CREATE TABLE IF NOT EXISTS `{staging_db}`.`stg_kesehatan_provinsi`
+            LIKE `{staging_db}`.`_load_stg_kesehatan_provinsi`;
+            """,
+            f"""
+            DELETE FROM `{staging_db}`.`stg_kesehatan_provinsi`
+            WHERE YEAR(waktu_ekstraksi) = YEAR(CURDATE());
+            """,
+            f"""
+            INSERT INTO `{staging_db}`.`stg_kesehatan_provinsi`
+            (id_provinsi, nama_provinsi, sumber_database, waktu_ekstraksi)
+            SELECT t.id_provinsi, t.nama_provinsi, t.sumber_database, t.waktu_ekstraksi
+            FROM `{staging_db}`.`_load_stg_kesehatan_provinsi` t;
+            """,
+            f"""
+            DROP TABLE `{staging_db}`.`_load_stg_kesehatan_provinsi`;
+            """,
+            f"""
+            CREATE TABLE IF NOT EXISTS `{staging_db}`.`stg_kesehatan_kabupaten_kota`
+            LIKE `{staging_db}`.`_load_stg_kesehatan_kabupaten_kota`;
+            """,
+            f"""
+            DELETE FROM `{staging_db}`.`stg_kesehatan_kabupaten_kota`
+            WHERE YEAR(waktu_ekstraksi) = YEAR(CURDATE());
+            """,
+            f"""
+            INSERT INTO `{staging_db}`.`stg_kesehatan_kabupaten_kota`
+            (id_kabupaten_kota, id_provinsi, nama_kabupaten_kota, sumber_database, waktu_ekstraksi)
+            SELECT t.id_kabupaten_kota, t.id_provinsi, t.nama_kabupaten_kota, t.sumber_database, t.waktu_ekstraksi
+            FROM `{staging_db}`.`_load_stg_kesehatan_kabupaten_kota` t;
+            """,
+            f"""
+            DROP TABLE `{staging_db}`.`_load_stg_kesehatan_kabupaten_kota`;
+            """,
+            f"""
+            CREATE TABLE IF NOT EXISTS `{staging_db}`.`stg_kesehatan_kelas_rs`
+            LIKE `{staging_db}`.`_load_stg_kesehatan_kelas_rs`;
+            """,
+            f"""
+            DELETE FROM `{staging_db}`.`stg_kesehatan_kelas_rs`
+            WHERE YEAR(waktu_ekstraksi) = YEAR(CURDATE());
+            """,
+            f"""
+            INSERT INTO `{staging_db}`.`stg_kesehatan_kelas_rs`
+            (id_kelas_rs, nama_kelas, sumber_database, waktu_ekstraksi)
+            SELECT t.id_kelas_rs, t.nama_kelas, t.sumber_database, t.waktu_ekstraksi
+            FROM `{staging_db}`.`_load_stg_kesehatan_kelas_rs` t;
+            """,
+            f"""
+            DROP TABLE `{staging_db}`.`_load_stg_kesehatan_kelas_rs`;
+            """,
+            f"""
+            CREATE TABLE IF NOT EXISTS `{staging_db}`.`stg_kesehatan_pemilik_rs`
+            LIKE `{staging_db}`.`_load_stg_kesehatan_pemilik_rs`;
+            """,
+            f"""
+            DELETE FROM `{staging_db}`.`stg_kesehatan_pemilik_rs`
+            WHERE YEAR(waktu_ekstraksi) = YEAR(CURDATE());
+            """,
+            f"""
+            INSERT INTO `{staging_db}`.`stg_kesehatan_pemilik_rs`
+            (id_pemilik_rs, nama_pemilik, sumber_database, waktu_ekstraksi)
+            SELECT t.id_pemilik_rs, t.nama_pemilik, t.sumber_database, t.waktu_ekstraksi
+            FROM `{staging_db}`.`_load_stg_kesehatan_pemilik_rs` t;
+            """,
+            f"""
+            DROP TABLE `{staging_db}`.`_load_stg_kesehatan_pemilik_rs`;
+            """,
+            f"""
+            CREATE TABLE IF NOT EXISTS `{staging_db}`.`stg_kesehatan_jenis_rs`
+            LIKE `{staging_db}`.`_load_stg_kesehatan_jenis_rs`;
+            """,
+            f"""
+            DELETE FROM `{staging_db}`.`stg_kesehatan_jenis_rs`
+            WHERE YEAR(waktu_ekstraksi) = YEAR(CURDATE());
+            """,
+            f"""
+            INSERT INTO `{staging_db}`.`stg_kesehatan_jenis_rs`
+            (id_jenis_rs, nama_jenis_rs, sumber_database, waktu_ekstraksi)
+            SELECT t.id_jenis_rs, t.nama_jenis_rs, t.sumber_database, t.waktu_ekstraksi
+            FROM `{staging_db}`.`_load_stg_kesehatan_jenis_rs` t;
+            """,
+            f"""
+            DROP TABLE `{staging_db}`.`_load_stg_kesehatan_jenis_rs`;
+            """,
+            f"""
+            CREATE TABLE IF NOT EXISTS `{staging_db}`.`stg_kesehatan_jenis_layanan_rs`
+            LIKE `{staging_db}`.`_load_stg_kesehatan_jenis_layanan_rs`;
+            """,
+            f"""
+            DELETE FROM `{staging_db}`.`stg_kesehatan_jenis_layanan_rs`
+            WHERE YEAR(waktu_ekstraksi) = YEAR(CURDATE());
+            """,
+            f"""
+            INSERT INTO `{staging_db}`.`stg_kesehatan_jenis_layanan_rs`
+            (id_jenis_layanan_rs, nama_layanan, sumber_database, waktu_ekstraksi)
+            SELECT t.id_jenis_layanan_rs, t.nama_layanan, t.sumber_database, t.waktu_ekstraksi
+            FROM `{staging_db}`.`_load_stg_kesehatan_jenis_layanan_rs` t;
+            """,
+            f"""
+            DROP TABLE `{staging_db}`.`_load_stg_kesehatan_jenis_layanan_rs`;
+            """,
+            f"""
+            CREATE TABLE IF NOT EXISTS `{staging_db}`.`stg_kesehatan_jenis_fasilitas_rs`
+            LIKE `{staging_db}`.`_load_stg_kesehatan_jenis_fasilitas_rs`;
+            """,
+            f"""
+            DELETE FROM `{staging_db}`.`stg_kesehatan_jenis_fasilitas_rs`
+            WHERE YEAR(waktu_ekstraksi) = YEAR(CURDATE());
+            """,
+            f"""
+            INSERT INTO `{staging_db}`.`stg_kesehatan_jenis_fasilitas_rs`
+            (id_jenis_fasilitas, nama_jenis_fasilitas, sumber_database, waktu_ekstraksi)
+            SELECT t.id_jenis_fasilitas, t.nama_jenis_fasilitas, t.sumber_database, t.waktu_ekstraksi
+            FROM `{staging_db}`.`_load_stg_kesehatan_jenis_fasilitas_rs` t;
+            """,
+            f"""
+            DROP TABLE `{staging_db}`.`_load_stg_kesehatan_jenis_fasilitas_rs`;
+            """,
+            f"""
+            CREATE TABLE IF NOT EXISTS `{staging_db}`.`stg_kesehatan_kategori_penyakit`
+            LIKE `{staging_db}`.`_load_stg_kesehatan_kategori_penyakit`;
+            """,
+            f"""
+            DELETE FROM `{staging_db}`.`stg_kesehatan_kategori_penyakit`
+            WHERE YEAR(waktu_ekstraksi) = YEAR(CURDATE());
+            """,
+            f"""
+            INSERT INTO `{staging_db}`.`stg_kesehatan_kategori_penyakit`
+            (id_kategori_penyakit, nama_kategori, sumber_database, waktu_ekstraksi)
+            SELECT t.id_kategori_penyakit, t.nama_kategori, t.sumber_database, t.waktu_ekstraksi
+            FROM `{staging_db}`.`_load_stg_kesehatan_kategori_penyakit` t;
+            """,
+            f"""
+            DROP TABLE `{staging_db}`.`_load_stg_kesehatan_kategori_penyakit`;
             """,
         ]
 
@@ -609,19 +797,70 @@ def create_kesehatan_tasks(
         transformations = [
 
             # =================================================
+            # PUSKESMAS
+            # =================================================
+
+            f"""
+            DROP TABLE IF EXISTS
+            `{staging_db}`.`_load_stg_kesehatan_puskesmas`;
+            """,
+
+            f"""
+            CREATE TABLE `{staging_db}`.`_load_stg_kesehatan_puskesmas`
+            AS
+            SELECT DISTINCT
+                NULLIF(TRIM(id_puskesmas), '') AS id_puskesmas,
+                NULLIF(TRIM(nama_puskesmas), '') AS nama_puskesmas,
+                NULLIF(TRIM(id_kabupaten_kota), '') AS id_kabupaten_kota,
+                NULLIF(TRIM(alamat), '') AS alamat,
+                NULLIF(TRIM(telepon), '') AS telepon,
+                sumber_database,
+                waktu_ekstraksi
+            FROM `{raw_db}`.`raw_kesehatan_puskesmas`
+            WHERE id_puskesmas IS NOT NULL
+              AND TRIM(id_puskesmas) <> '';
+            """,
+
+            f"""
+            ALTER TABLE `{staging_db}`.`_load_stg_kesehatan_puskesmas`
+            ADD COLUMN id BIGINT NOT NULL AUTO_INCREMENT PRIMARY KEY;
+            """,
+
+            f"""
+            CREATE TABLE IF NOT EXISTS `{staging_db}`.`stg_kesehatan_puskesmas`
+            LIKE `{staging_db}`.`_load_stg_kesehatan_puskesmas`;
+            """,
+
+            f"""
+            DELETE FROM `{staging_db}`.`stg_kesehatan_puskesmas`
+            WHERE YEAR(waktu_ekstraksi) = YEAR(CURDATE());
+            """,
+
+            f"""
+            INSERT INTO `{staging_db}`.`stg_kesehatan_puskesmas`
+            (id_puskesmas, nama_puskesmas, id_kabupaten_kota, alamat,
+             telepon, sumber_database, waktu_ekstraksi)
+            SELECT id_puskesmas, nama_puskesmas, id_kabupaten_kota, alamat,
+                   telepon, sumber_database, waktu_ekstraksi
+            FROM `{staging_db}`.`_load_stg_kesehatan_puskesmas`;
+            """,
+
+            f"""
+            DROP TABLE `{staging_db}`.`_load_stg_kesehatan_puskesmas`;
+            """,
+
+            # =================================================
             # RS (cleansing + koordinat)
             # =================================================
 
             f"""
             DROP TABLE IF EXISTS
-            `{staging_db}`.`stg_rs`;
+            `{staging_db}`.`_load_stg_kesehatan_rs`;
             """,
 
             f"""
-            CREATE TABLE `{staging_db}`.`stg_rs`
-            (
-                id BIGINT NOT NULL AUTO_INCREMENT PRIMARY KEY
-            ) AS
+            CREATE TABLE `{staging_db}`.`_load_stg_kesehatan_rs`
+            AS
 
             SELECT DISTINCT
                 TRIM(id_rs) AS id_rs,
@@ -650,7 +889,7 @@ def create_kesehatan_tasks(
                 sumber_database,
                 waktu_ekstraksi
 
-            FROM `{raw_db}`.`raw_rs`
+            FROM `{raw_db}`.`raw_kesehatan_rs`
 
             WHERE
                 id_rs IS NOT NULL
@@ -663,14 +902,12 @@ def create_kesehatan_tasks(
 
             f"""
             DROP TABLE IF EXISTS
-            `{staging_db}`.`stg_rs_lengkap`;
+            `{staging_db}`.`_load_stg_kesehatan_rs_lengkap`;
             """,
 
             f"""
-            CREATE TABLE `{staging_db}`.`stg_rs_lengkap`
-            (
-                id BIGINT NOT NULL AUTO_INCREMENT PRIMARY KEY
-            ) AS
+            CREATE TABLE `{staging_db}`.`_load_stg_kesehatan_rs_lengkap`
+            AS
 
             SELECT
                 r.id_rs,
@@ -698,21 +935,21 @@ def create_kesehatan_tasks(
                 r.sumber_database,
                 r.waktu_ekstraksi
 
-            FROM `{staging_db}`.`stg_rs` r
+            FROM `{staging_db}`.`_load_stg_kesehatan_rs` r
 
-            LEFT JOIN `{staging_db}`.`stg_kelas_rs` k
+            LEFT JOIN `{staging_db}`.`stg_kesehatan_kelas_rs` k
                 ON r.id_kelas_rs = k.id_kelas_rs
 
-            LEFT JOIN `{staging_db}`.`stg_jenis_rs` j
+            LEFT JOIN `{staging_db}`.`stg_kesehatan_jenis_rs` j
                 ON r.id_jenis_rs = j.id_jenis_rs
 
-            LEFT JOIN `{staging_db}`.`stg_pemilik_rs` p
+            LEFT JOIN `{staging_db}`.`stg_kesehatan_pemilik_rs` p
                 ON r.id_pemilik_rs = p.id_pemilik_rs
 
-            LEFT JOIN `{staging_db}`.`stg_kabupaten_kota` kab
+            LEFT JOIN `{staging_db}`.`stg_kesehatan_kabupaten_kota` kab
                 ON r.id_kabupaten_kota = kab.id_kabupaten_kota
 
-            LEFT JOIN `{staging_db}`.`stg_provinsi` prov
+            LEFT JOIN `{staging_db}`.`stg_kesehatan_provinsi` prov
                 ON kab.id_provinsi = prov.id_provinsi;
             """,
 
@@ -722,14 +959,12 @@ def create_kesehatan_tasks(
 
             f"""
             DROP TABLE IF EXISTS
-            `{staging_db}`.`stg_layanan_rs`;
+            `{staging_db}`.`_load_stg_kesehatan_layanan_rs`;
             """,
 
             f"""
-            CREATE TABLE `{staging_db}`.`stg_layanan_rs`
-            (
-                id BIGINT NOT NULL AUTO_INCREMENT PRIMARY KEY
-            ) AS
+            CREATE TABLE `{staging_db}`.`_load_stg_kesehatan_layanan_rs`
+            AS
 
             SELECT DISTINCT
                 TRIM(id_layanan_rs) AS id_layanan_rs,
@@ -738,7 +973,7 @@ def create_kesehatan_tasks(
                 sumber_database,
                 waktu_ekstraksi
 
-            FROM `{raw_db}`.`raw_layanan_rs`
+            FROM `{raw_db}`.`raw_kesehatan_layanan_rs`
 
             WHERE
                 id_layanan_rs IS NOT NULL
@@ -752,14 +987,12 @@ def create_kesehatan_tasks(
 
             f"""
             DROP TABLE IF EXISTS
-            `{staging_db}`.`stg_fasilitas_rs`;
+            `{staging_db}`.`_load_stg_kesehatan_fasilitas_rs`;
             """,
 
             f"""
-            CREATE TABLE `{staging_db}`.`stg_fasilitas_rs`
-            (
-                id BIGINT NOT NULL AUTO_INCREMENT PRIMARY KEY
-            ) AS
+            CREATE TABLE `{staging_db}`.`_load_stg_kesehatan_fasilitas_rs`
+            AS
 
             SELECT DISTINCT
                 TRIM(id_fasilitas) AS id_fasilitas,
@@ -778,7 +1011,7 @@ def create_kesehatan_tasks(
                 sumber_database,
                 waktu_ekstraksi
 
-            FROM `{raw_db}`.`raw_fasilitas_rs`
+            FROM `{raw_db}`.`raw_kesehatan_fasilitas_rs`
 
             WHERE
                 id_fasilitas IS NOT NULL
@@ -792,14 +1025,12 @@ def create_kesehatan_tasks(
 
             f"""
             DROP TABLE IF EXISTS
-            `{staging_db}`.`stg_jenis_tenaga_medis`;
+            `{staging_db}`.`_load_stg_kesehatan_jenis_tenaga_medis`;
             """,
 
             f"""
-            CREATE TABLE `{staging_db}`.`stg_jenis_tenaga_medis`
-            (
-                id BIGINT NOT NULL AUTO_INCREMENT PRIMARY KEY
-            ) AS
+            CREATE TABLE `{staging_db}`.`_load_stg_kesehatan_jenis_tenaga_medis`
+            AS
 
             SELECT DISTINCT
                 TRIM(id_jenis_tenaga_medis) AS id_jenis_tenaga_medis,
@@ -808,7 +1039,7 @@ def create_kesehatan_tasks(
                 sumber_database,
                 waktu_ekstraksi
 
-            FROM `{raw_db}`.`raw_jenis_tenaga_medis`
+            FROM `{raw_db}`.`raw_kesehatan_jenis_tenaga_medis`
 
             WHERE
                 id_jenis_tenaga_medis IS NOT NULL
@@ -821,14 +1052,12 @@ def create_kesehatan_tasks(
 
             f"""
             DROP TABLE IF EXISTS
-            `{staging_db}`.`stg_tenaga_medis`;
+            `{staging_db}`.`_load_stg_kesehatan_tenaga_medis`;
             """,
 
             f"""
-            CREATE TABLE `{staging_db}`.`stg_tenaga_medis`
-            (
-                id BIGINT NOT NULL AUTO_INCREMENT PRIMARY KEY
-            ) AS
+            CREATE TABLE `{staging_db}`.`_load_stg_kesehatan_tenaga_medis`
+            AS
 
             SELECT DISTINCT
                 TRIM(id_tenaga_medis) AS id_tenaga_medis,
@@ -843,7 +1072,7 @@ def create_kesehatan_tasks(
                 sumber_database,
                 waktu_ekstraksi
 
-            FROM `{raw_db}`.`raw_tenaga_medis`
+            FROM `{raw_db}`.`raw_kesehatan_tenaga_medis`
 
             WHERE
                 id_tenaga_medis IS NOT NULL
@@ -857,14 +1086,12 @@ def create_kesehatan_tasks(
 
             f"""
             DROP TABLE IF EXISTS
-            `{staging_db}`.`stg_penyakit`;
+            `{staging_db}`.`_load_stg_kesehatan_penyakit`;
             """,
 
             f"""
-            CREATE TABLE `{staging_db}`.`stg_penyakit`
-            (
-                id BIGINT NOT NULL AUTO_INCREMENT PRIMARY KEY
-            ) AS
+            CREATE TABLE `{staging_db}`.`_load_stg_kesehatan_penyakit`
+            AS
 
             SELECT DISTINCT
                 TRIM(id_penyakit) AS id_penyakit,
@@ -873,11 +1100,126 @@ def create_kesehatan_tasks(
                 sumber_database,
                 waktu_ekstraksi
 
-            FROM `{raw_db}`.`raw_penyakit`
+            FROM `{raw_db}`.`raw_kesehatan_penyakit`
 
             WHERE
                 id_penyakit IS NOT NULL
                 AND TRIM(nama_penyakit) <> '';
+            """,
+        ]
+
+        transformations += [
+            f"""
+            CREATE TABLE IF NOT EXISTS `{staging_db}`.`stg_kesehatan_rs`
+            LIKE `{staging_db}`.`_load_stg_kesehatan_rs`;
+            """,
+            f"""
+            DELETE FROM `{staging_db}`.`stg_kesehatan_rs`
+            WHERE YEAR(waktu_ekstraksi) = YEAR(CURDATE());
+            """,
+            f"""
+            INSERT INTO `{staging_db}`.`stg_kesehatan_rs`
+            SELECT t.*
+            FROM `{staging_db}`.`_load_stg_kesehatan_rs` t;
+            """,
+            f"""
+            DROP TABLE `{staging_db}`.`_load_stg_kesehatan_rs`;
+            """,
+            f"""
+            CREATE TABLE IF NOT EXISTS `{staging_db}`.`stg_kesehatan_rs_lengkap`
+            LIKE `{staging_db}`.`_load_stg_kesehatan_rs_lengkap`;
+            """,
+            f"""
+            DELETE FROM `{staging_db}`.`stg_kesehatan_rs_lengkap`
+            WHERE YEAR(waktu_ekstraksi) = YEAR(CURDATE());
+            """,
+            f"""
+            INSERT INTO `{staging_db}`.`stg_kesehatan_rs_lengkap`
+            SELECT t.*
+            FROM `{staging_db}`.`_load_stg_kesehatan_rs_lengkap` t;
+            """,
+            f"""
+            DROP TABLE `{staging_db}`.`_load_stg_kesehatan_rs_lengkap`;
+            """,
+            f"""
+            CREATE TABLE IF NOT EXISTS `{staging_db}`.`stg_kesehatan_layanan_rs`
+            LIKE `{staging_db}`.`_load_stg_kesehatan_layanan_rs`;
+            """,
+            f"""
+            DELETE FROM `{staging_db}`.`stg_kesehatan_layanan_rs`
+            WHERE YEAR(waktu_ekstraksi) = YEAR(CURDATE());
+            """,
+            f"""
+            INSERT INTO `{staging_db}`.`stg_kesehatan_layanan_rs`
+            SELECT t.*
+            FROM `{staging_db}`.`_load_stg_kesehatan_layanan_rs` t;
+            """,
+            f"""
+            DROP TABLE `{staging_db}`.`_load_stg_kesehatan_layanan_rs`;
+            """,
+            f"""
+            CREATE TABLE IF NOT EXISTS `{staging_db}`.`stg_kesehatan_fasilitas_rs`
+            LIKE `{staging_db}`.`_load_stg_kesehatan_fasilitas_rs`;
+            """,
+            f"""
+            DELETE FROM `{staging_db}`.`stg_kesehatan_fasilitas_rs`
+            WHERE YEAR(waktu_ekstraksi) = YEAR(CURDATE());
+            """,
+            f"""
+            INSERT INTO `{staging_db}`.`stg_kesehatan_fasilitas_rs`
+            SELECT t.*
+            FROM `{staging_db}`.`_load_stg_kesehatan_fasilitas_rs` t;
+            """,
+            f"""
+            DROP TABLE `{staging_db}`.`_load_stg_kesehatan_fasilitas_rs`;
+            """,
+            f"""
+            CREATE TABLE IF NOT EXISTS `{staging_db}`.`stg_kesehatan_jenis_tenaga_medis`
+            LIKE `{staging_db}`.`_load_stg_kesehatan_jenis_tenaga_medis`;
+            """,
+            f"""
+            DELETE FROM `{staging_db}`.`stg_kesehatan_jenis_tenaga_medis`
+            WHERE YEAR(waktu_ekstraksi) = YEAR(CURDATE());
+            """,
+            f"""
+            INSERT INTO `{staging_db}`.`stg_kesehatan_jenis_tenaga_medis`
+            SELECT t.*
+            FROM `{staging_db}`.`_load_stg_kesehatan_jenis_tenaga_medis` t;
+            """,
+            f"""
+            DROP TABLE `{staging_db}`.`_load_stg_kesehatan_jenis_tenaga_medis`;
+            """,
+            f"""
+            CREATE TABLE IF NOT EXISTS `{staging_db}`.`stg_kesehatan_tenaga_medis`
+            LIKE `{staging_db}`.`_load_stg_kesehatan_tenaga_medis`;
+            """,
+            f"""
+            DELETE FROM `{staging_db}`.`stg_kesehatan_tenaga_medis`
+            WHERE YEAR(waktu_ekstraksi) = YEAR(CURDATE());
+            """,
+            f"""
+            INSERT INTO `{staging_db}`.`stg_kesehatan_tenaga_medis`
+            SELECT t.*
+            FROM `{staging_db}`.`_load_stg_kesehatan_tenaga_medis` t;
+            """,
+            f"""
+            DROP TABLE `{staging_db}`.`_load_stg_kesehatan_tenaga_medis`;
+            """,
+            f"""
+            CREATE TABLE IF NOT EXISTS `{staging_db}`.`stg_kesehatan_penyakit`
+            LIKE `{staging_db}`.`_load_stg_kesehatan_penyakit`;
+            """,
+            f"""
+            DELETE FROM `{staging_db}`.`stg_kesehatan_penyakit`
+            WHERE YEAR(waktu_ekstraksi) = YEAR(CURDATE());
+            """,
+            f"""
+            INSERT INTO `{staging_db}`.`stg_kesehatan_penyakit`
+            SELECT t.*
+            FROM `{staging_db}`.`_load_stg_kesehatan_penyakit` t;
+            """,
+            f"""
+            DROP TABLE `{staging_db}`.`_load_stg_kesehatan_penyakit`;
             """,
         ]
 
@@ -904,14 +1246,12 @@ def create_kesehatan_tasks(
 
             f"""
             DROP TABLE IF EXISTS
-            `{staging_db}`.`stg_pasien`;
+            `{staging_db}`.`_load_stg_kesehatan_pasien`;
             """,
 
             f"""
-            CREATE TABLE `{staging_db}`.`stg_pasien`
-            (
-                id BIGINT NOT NULL AUTO_INCREMENT PRIMARY KEY
-            ) AS
+            CREATE TABLE `{staging_db}`.`_load_stg_kesehatan_pasien`
+            AS
 
             SELECT DISTINCT
                 TRIM(id_pasien) AS id_pasien,
@@ -956,9 +1296,28 @@ def create_kesehatan_tasks(
                 sumber_database,
                 waktu_ekstraksi
 
-            FROM `{raw_db}`.`raw_pasien`
+            FROM `{raw_db}`.`raw_kesehatan_pasien`
 
             WHERE id_pasien IS NOT NULL;
+            """,
+        ]
+
+        transformations += [
+            f"""
+            CREATE TABLE IF NOT EXISTS `{staging_db}`.`stg_kesehatan_pasien`
+            LIKE `{staging_db}`.`_load_stg_kesehatan_pasien`;
+            """,
+            f"""
+            DELETE FROM `{staging_db}`.`stg_kesehatan_pasien`
+            WHERE YEAR(waktu_ekstraksi) = YEAR(CURDATE());
+            """,
+            f"""
+            INSERT INTO `{staging_db}`.`stg_kesehatan_pasien`
+            SELECT t.*
+            FROM `{staging_db}`.`_load_stg_kesehatan_pasien` t;
+            """,
+            f"""
+            DROP TABLE `{staging_db}`.`_load_stg_kesehatan_pasien`;
             """,
         ]
 
@@ -968,7 +1327,7 @@ def create_kesehatan_tasks(
     # ========================================================
     # TASK 2D: TRANSFORM - KASUS & REJECT (validasi + tracking)
     # ========================================================
-    # Kasus penyakit dan reject table. Depends on task 2C (stg_pasien).
+    # Kasus penyakit dan reject table. Depends on task 2C (stg_kesehatan_pasien).
 
     @task
     def transform_kasus_reject():
@@ -985,14 +1344,12 @@ def create_kesehatan_tasks(
 
             f"""
             DROP TABLE IF EXISTS
-            `{staging_db}`.`stg_kasus_penyakit_rs`;
+            `{staging_db}`.`_load_stg_kesehatan_kasus_penyakit_rs`;
             """,
 
             f"""
-            CREATE TABLE `{staging_db}`.`stg_kasus_penyakit_rs`
-            (
-                id BIGINT NOT NULL AUTO_INCREMENT PRIMARY KEY
-            ) AS
+            CREATE TABLE `{staging_db}`.`_load_stg_kesehatan_kasus_penyakit_rs`
+            AS
 
             SELECT DISTINCT
                 TRIM(k.id_kasus) AS id_kasus,
@@ -1003,15 +1360,15 @@ def create_kesehatan_tasks(
                 k.sumber_database,
                 k.waktu_ekstraksi
 
-            FROM `{raw_db}`.`raw_kasus_penyakit_rs` k
+            FROM `{raw_db}`.`raw_kesehatan_kasus_penyakit_rs` k
 
-            INNER JOIN `{staging_db}`.`stg_rs` r
+            INNER JOIN `{staging_db}`.`stg_kesehatan_rs` r
                 ON TRIM(k.id_rs) = r.id_rs
 
-            INNER JOIN `{staging_db}`.`stg_penyakit` p
+            INNER JOIN `{staging_db}`.`stg_kesehatan_penyakit` p
                 ON TRIM(k.id_penyakit) = p.id_penyakit
 
-            INNER JOIN `{staging_db}`.`stg_pasien` s
+            INNER JOIN `{staging_db}`.`stg_kesehatan_pasien` s
                 ON TRIM(k.id_pasien) = s.id_pasien
 
             WHERE
@@ -1027,11 +1384,11 @@ def create_kesehatan_tasks(
 
             f"""
             DROP TABLE IF EXISTS
-            `{staging_db}`.`stg_reject`;
+            `{staging_db}`.`_load_stg_kesehatan_reject`;
             """,
 
             f"""
-            CREATE TABLE `{staging_db}`.`stg_reject`
+            CREATE TABLE `{staging_db}`.`_load_stg_kesehatan_reject`
             (
                 id BIGINT NOT NULL AUTO_INCREMENT PRIMARY KEY,
                 tabel_sumber VARCHAR(255) NOT NULL,
@@ -1045,27 +1402,27 @@ def create_kesehatan_tasks(
 
             # Pasien: id kosong
             f"""
-            INSERT INTO `{staging_db}`.`stg_reject`
+            INSERT INTO `{staging_db}`.`_load_stg_kesehatan_reject`
             (tabel_sumber, id_baris, alasan, waktu_ekstraksi)
             SELECT
-                'raw_pasien',
+                'raw_kesehatan_pasien',
                 r.id,
                 'id_pasien kosong',
                 r.waktu_ekstraksi
-            FROM `{raw_db}`.`raw_pasien` r
+            FROM `{raw_db}`.`raw_kesehatan_pasien` r
             WHERE r.id_pasien IS NULL;
             """,
 
             # Pasien: NIK invalid
             f"""
-            INSERT INTO `{staging_db}`.`stg_reject`
+            INSERT INTO `{staging_db}`.`_load_stg_kesehatan_reject`
             (tabel_sumber, id_baris, alasan, waktu_ekstraksi)
             SELECT
-                'raw_pasien',
+                'raw_kesehatan_pasien',
                 r.id,
                 'NIK tidak valid (bukan 15/16 digit)',
                 r.waktu_ekstraksi
-            FROM `{raw_db}`.`raw_pasien` r
+            FROM `{raw_db}`.`raw_kesehatan_pasien` r
             WHERE r.id_pasien IS NOT NULL
               AND LENGTH(
                   REGEXP_REPLACE(COALESCE(r.nik, ''), '[^0-9]', '')
@@ -1074,14 +1431,14 @@ def create_kesehatan_tasks(
 
             # Pasien: jenis kelamin tidak dikenal
             f"""
-            INSERT INTO `{staging_db}`.`stg_reject`
+            INSERT INTO `{staging_db}`.`_load_stg_kesehatan_reject`
             (tabel_sumber, id_baris, alasan, waktu_ekstraksi)
             SELECT
-                'raw_pasien',
+                'raw_kesehatan_pasien',
                 r.id,
                 'jenis kelamin tidak dikenal',
                 r.waktu_ekstraksi
-            FROM `{raw_db}`.`raw_pasien` r
+            FROM `{raw_db}`.`raw_kesehatan_pasien` r
             WHERE r.id_pasien IS NOT NULL
               AND UPPER(TRIM(r.jenis_kelamin)) NOT IN
                   ('L', 'LAKI LAKI', 'LAKI-LAKI', 'PRIA',
@@ -1090,14 +1447,14 @@ def create_kesehatan_tasks(
 
             # Pasien: tanggal lahir tidak valid
             f"""
-            INSERT INTO `{staging_db}`.`stg_reject`
+            INSERT INTO `{staging_db}`.`_load_stg_kesehatan_reject`
             (tabel_sumber, id_baris, alasan, waktu_ekstraksi)
             SELECT
-                'raw_pasien',
+                'raw_kesehatan_pasien',
                 r.id,
                 'tanggal_lahir tidak valid (format atau masa depan)',
                 r.waktu_ekstraksi
-            FROM `{raw_db}`.`raw_pasien` r
+            FROM `{raw_db}`.`raw_kesehatan_pasien` r
             WHERE r.id_pasien IS NOT NULL
               AND (
                   TRIM(r.tanggal_lahir)
@@ -1108,27 +1465,27 @@ def create_kesehatan_tasks(
 
             # Kasus: id kasus kosong
             f"""
-            INSERT INTO `{staging_db}`.`stg_reject`
+            INSERT INTO `{staging_db}`.`_load_stg_kesehatan_reject`
             (tabel_sumber, id_baris, alasan, waktu_ekstraksi)
             SELECT
-                'raw_kasus_penyakit_rs',
+                'raw_kesehatan_kasus_penyakit_rs',
                 k.id,
                 'id_kasus kosong',
                 k.waktu_ekstraksi
-            FROM `{raw_db}`.`raw_kasus_penyakit_rs` k
+            FROM `{raw_db}`.`raw_kesehatan_kasus_penyakit_rs` k
             WHERE k.id_kasus IS NULL;
             """,
 
             # Kasus: tanggal kasus tidak valid
             f"""
-            INSERT INTO `{staging_db}`.`stg_reject`
+            INSERT INTO `{staging_db}`.`_load_stg_kesehatan_reject`
             (tabel_sumber, id_baris, alasan, waktu_ekstraksi)
             SELECT
-                'raw_kasus_penyakit_rs',
+                'raw_kesehatan_kasus_penyakit_rs',
                 k.id,
                 'tanggal_kasus tidak valid (format atau masa depan)',
                 k.waktu_ekstraksi
-            FROM `{raw_db}`.`raw_kasus_penyakit_rs` k
+            FROM `{raw_db}`.`raw_kesehatan_kasus_penyakit_rs` k
             WHERE k.id_kasus IS NOT NULL
               AND (
                   TRIM(k.tanggal_kasus)
@@ -1139,14 +1496,14 @@ def create_kesehatan_tasks(
 
             # Kasus: referensi tidak ditemukan
             f"""
-            INSERT INTO `{staging_db}`.`stg_reject`
+            INSERT INTO `{staging_db}`.`_load_stg_kesehatan_reject`
             (tabel_sumber, id_baris, alasan, waktu_ekstraksi)
             SELECT
-                'raw_kasus_penyakit_rs',
+                'raw_kesehatan_kasus_penyakit_rs',
                 k.id,
                 'referensi tidak ditemukan (rs / penyakit / pasien)',
                 k.waktu_ekstraksi
-            FROM `{raw_db}`.`raw_kasus_penyakit_rs` k
+            FROM `{raw_db}`.`raw_kesehatan_kasus_penyakit_rs` k
             WHERE k.id_kasus IS NOT NULL
               AND TRIM(k.tanggal_kasus)
                   REGEXP '^[0-9]{{4}}-[0-9]{{2}}-[0-9]{{2}}$'
@@ -1154,20 +1511,55 @@ def create_kesehatan_tasks(
               AND (
                   NOT EXISTS (
                       SELECT 1
-                      FROM `{staging_db}`.`stg_rs` r
+FROM `{staging_db}`.`stg_kesehatan_rs` r
                       WHERE TRIM(k.id_rs) = r.id_rs
                   )
                   OR NOT EXISTS (
                       SELECT 1
-                      FROM `{staging_db}`.`stg_penyakit` p
+                      FROM `{staging_db}`.`stg_kesehatan_penyakit` p
                       WHERE TRIM(k.id_penyakit) = p.id_penyakit
                   )
                   OR NOT EXISTS (
                       SELECT 1
-                      FROM `{staging_db}`.`stg_pasien` s
+                      FROM `{staging_db}`.`stg_kesehatan_pasien` s
                       WHERE TRIM(k.id_pasien) = s.id_pasien
                   )
               );
+            """,
+        ]
+
+        transformations += [
+            f"""
+            CREATE TABLE IF NOT EXISTS `{staging_db}`.`stg_kesehatan_kasus_penyakit_rs`
+            LIKE `{staging_db}`.`_load_stg_kesehatan_kasus_penyakit_rs`;
+            """,
+            f"""
+            DELETE FROM `{staging_db}`.`stg_kesehatan_kasus_penyakit_rs`
+            WHERE YEAR(waktu_ekstraksi) = YEAR(CURDATE());
+            """,
+            f"""
+            INSERT INTO `{staging_db}`.`stg_kesehatan_kasus_penyakit_rs`
+            SELECT t.*
+            FROM `{staging_db}`.`_load_stg_kesehatan_kasus_penyakit_rs` t;
+            """,
+            f"""
+            DROP TABLE `{staging_db}`.`_load_stg_kesehatan_kasus_penyakit_rs`;
+            """,
+            f"""
+            CREATE TABLE IF NOT EXISTS `{staging_db}`.`stg_kesehatan_reject`
+            LIKE `{staging_db}`.`_load_stg_kesehatan_reject`;
+            """,
+            f"""
+            DELETE FROM `{staging_db}`.`stg_kesehatan_reject`
+            WHERE YEAR(waktu_ekstraksi) = YEAR(CURDATE());
+            """,
+            f"""
+            INSERT INTO `{staging_db}`.`stg_kesehatan_reject`
+            SELECT t.*
+            FROM `{staging_db}`.`_load_stg_kesehatan_reject` t;
+            """,
+            f"""
+            DROP TABLE `{staging_db}`.`_load_stg_kesehatan_reject`;
             """,
         ]
 
@@ -1185,8 +1577,9 @@ def create_kesehatan_tasks(
             reject_cursor.execute(
                 f"""
                 SELECT alasan, COUNT(*) AS jumlah
-                FROM `{staging_db}`.`stg_reject`
-                GROUP BY alasan
+FROM `{staging_db}`.`stg_kesehatan_reject`
+                 WHERE YEAR(waktu_ekstraksi) = YEAR(CURDATE())
+                 GROUP BY alasan
                 ORDER BY jumlah DESC;
                 """
             )
@@ -1286,6 +1679,26 @@ def create_kesehatan_tasks(
         # ====================================================
 
         create_tables = [
+
+            # ---------------------------------------------
+            # DIM PUSKESMAS (Type 1)
+            # ---------------------------------------------
+
+            f"""
+            CREATE TABLE IF NOT EXISTS
+            `{dwh_db}`.`dim_kesehatan_puskesmas`
+            (
+                puskesmas_key INT AUTO_INCREMENT PRIMARY KEY,
+                id_puskesmas VARCHAR(50) NOT NULL,
+                nama_puskesmas VARCHAR(150),
+                id_kabupaten_kota VARCHAR(20),
+                alamat TEXT,
+                telepon VARCHAR(50),
+                sumber_database VARCHAR(255),
+                waktu_load DATETIME NOT NULL,
+                UNIQUE KEY uk_puskesmas (id_puskesmas)
+            );
+            """,
 
             # ---------------------------------------------
             # DIM RS (Type 1 - atribut kelas/jenis/pemilik diupdate in-place)
@@ -1551,6 +1964,60 @@ def create_kesehatan_tasks(
 
         execute_sql(create_tables)
 
+        hook = get_mysql_hook()
+        schema_conn = hook.get_conn()
+        schema_cursor = schema_conn.cursor()
+        try:
+            schema_cursor.execute(
+                """
+                SELECT column_name
+                FROM information_schema.columns
+                WHERE table_schema = %s
+                  AND table_name = 'dim_kesehatan_rs'
+                """,
+                (dwh_db,),
+            )
+            existing_columns = {row[0] for row in schema_cursor.fetchall()}
+        finally:
+            schema_cursor.close()
+            schema_conn.close()
+
+        table_columns = {
+            "dim_kesehatan_rs": {
+                "id_kabupaten_kota": "VARCHAR(10)",
+                "nama_kabupaten_kota": "VARCHAR(100)",
+                "id_provinsi": "VARCHAR(10)",
+                "nama_provinsi": "VARCHAR(100)",
+            },
+            "dim_kesehatan_puskesmas": {
+                "id_kabupaten_kota": "VARCHAR(20)",
+            },
+        }
+        for table_name, missing_columns in table_columns.items():
+            schema_cursor = hook.get_conn().cursor()
+            try:
+                schema_cursor.execute(
+                    """
+                    SELECT column_name
+                    FROM information_schema.columns
+                    WHERE table_schema = %s AND table_name = %s
+                    """,
+                    (dwh_db, table_name),
+                )
+                existing = {row[0] for row in schema_cursor.fetchall()}
+            finally:
+                schema_cursor.connection.close()
+            alter_columns = [
+                f"ADD COLUMN `{name}` {definition}"
+                for name, definition in missing_columns.items()
+                if name not in existing
+            ]
+            if alter_columns:
+                execute_sql([
+                    f"ALTER TABLE `{dwh_db}`.`{table_name}` "
+                    + ", ".join(alter_columns) + ";"
+                ])
+
         # ====================================================
         # POPULASI DIM_WAKTU (hanya baris yang belum ada)
         #
@@ -1593,7 +2060,7 @@ def create_kesehatan_tasks(
             UNION
 
             SELECT DISTINCT tanggal_kasus
-            FROM `{staging_db}`.`stg_kasus_penyakit_rs`
+            FROM `{staging_db}`.`stg_kesehatan_kasus_penyakit_rs`
             WHERE tanggal_kasus IS NOT NULL
         ) t
 
@@ -1607,6 +2074,26 @@ def create_kesehatan_tasks(
         # ====================================================
 
         load_dimensions = [
+
+            # ---------------------------------------------
+            # DIM PUSKESMAS (Type 1)
+            # ---------------------------------------------
+
+            f"""
+            INSERT INTO `{dwh_db}`.`dim_kesehatan_puskesmas`
+            (id_puskesmas, nama_puskesmas, id_kabupaten_kota, alamat,
+             telepon, sumber_database, waktu_load)
+            SELECT id_puskesmas, nama_puskesmas, id_kabupaten_kota, alamat,
+                   telepon, sumber_database, NOW()
+            FROM `{staging_db}`.`stg_kesehatan_puskesmas`
+            ON DUPLICATE KEY UPDATE
+                nama_puskesmas = VALUES(nama_puskesmas),
+                id_kabupaten_kota = VALUES(id_kabupaten_kota),
+                alamat = VALUES(alamat),
+                telepon = VALUES(telepon),
+                sumber_database = VALUES(sumber_database),
+                waktu_load = VALUES(waktu_load);
+            """,
 
             # ---------------------------------------------
             # DIM RS (Type 1 - semua atribut diupdate in-place)
@@ -1633,7 +2120,7 @@ def create_kesehatan_tasks(
                 s.id_provinsi, s.nama_provinsi,
                 s.sumber_database, NOW()
 
-            FROM `{staging_db}`.`stg_rs_lengkap` s
+            FROM `{staging_db}`.`stg_kesehatan_rs_lengkap` s
 
             ON DUPLICATE KEY UPDATE
                 nama_rs = VALUES(nama_rs),
@@ -1675,9 +2162,9 @@ def create_kesehatan_tasks(
                 p.sumber_database,
                 NOW()
 
-            FROM `{staging_db}`.`stg_penyakit` p
+            FROM `{staging_db}`.`stg_kesehatan_penyakit` p
 
-            LEFT JOIN `{staging_db}`.`stg_kategori_penyakit` k
+            LEFT JOIN `{staging_db}`.`stg_kesehatan_kategori_penyakit` k
                 ON p.id_kategori_penyakit = k.id_kategori_penyakit
 
             ON DUPLICATE KEY UPDATE
@@ -1705,7 +2192,7 @@ def create_kesehatan_tasks(
                 sumber_database,
                 NOW()
 
-            FROM `{staging_db}`.`stg_jenis_layanan_rs`
+            FROM `{staging_db}`.`stg_kesehatan_jenis_layanan_rs`
 
             ON DUPLICATE KEY UPDATE
                 nama_layanan = VALUES(nama_layanan),
@@ -1715,8 +2202,8 @@ def create_kesehatan_tasks(
 
             # ---------------------------------------------
             # DIM FASILITAS (Type 1)
-            # Sumber: stg_fasilitas_rs (nama fasilitas) +
-            # stg_jenis_fasilitas_rs (nama jenis)
+            # Sumber: stg_kesehatan_fasilitas_rs (nama fasilitas) +
+            # stg_kesehatan_jenis_fasilitas_rs (nama jenis)
             # ---------------------------------------------
 
             f"""
@@ -1734,9 +2221,9 @@ def create_kesehatan_tasks(
                 f.sumber_database,
                 NOW()
 
-            FROM `{staging_db}`.`stg_fasilitas_rs` f
+            FROM `{staging_db}`.`stg_kesehatan_fasilitas_rs` f
 
-            LEFT JOIN `{staging_db}`.`stg_jenis_fasilitas_rs` j
+            LEFT JOIN `{staging_db}`.`stg_kesehatan_jenis_fasilitas_rs` j
                 ON f.id_jenis_fasilitas = j.id_jenis_fasilitas
 
             ON DUPLICATE KEY UPDATE
@@ -1748,8 +2235,8 @@ def create_kesehatan_tasks(
 
             # ---------------------------------------------
             # DIM TENAGA MEDIS (Type 1, grain = jenis)
-            # Sumber: stg_jenis_tenaga_medis +
-            # stg_kelompok_tenaga_medis (untuk kategori_profesi)
+            # Sumber: stg_kesehatan_jenis_tenaga_medis +
+            # stg_kesehatan_kelompok_tenaga_medis (untuk kategori_profesi)
             # KTM001-KTM006 = Dokter, KTM007 = Perawat
             # ---------------------------------------------
 
@@ -1783,9 +2270,9 @@ def create_kesehatan_tasks(
                 j.sumber_database,
                 NOW()
 
-            FROM `{staging_db}`.`stg_jenis_tenaga_medis` j
+            FROM `{staging_db}`.`stg_kesehatan_jenis_tenaga_medis` j
 
-            LEFT JOIN `{staging_db}`.`stg_kelompok_tenaga_medis` k
+            LEFT JOIN `{staging_db}`.`stg_kesehatan_kelompok_tenaga_medis` k
                 ON j.id_kelompok_tenaga_medis =
                    k.id_kelompok_tenaga_medis
 
@@ -1886,9 +2373,9 @@ def create_kesehatan_tasks(
                         )
                     END AS umur
 
-                FROM `{staging_db}`.`stg_kasus_penyakit_rs` k
+                FROM `{staging_db}`.`stg_kesehatan_kasus_penyakit_rs` k
 
-                JOIN `{staging_db}`.`stg_pasien` s
+                JOIN `{staging_db}`.`stg_kesehatan_pasien` s
                     ON k.id_pasien = s.id_pasien
             ) c
 
@@ -1938,7 +2425,7 @@ def create_kesehatan_tasks(
                     id_rs,
                     id_jenis_layanan_rs,
                     sumber_database
-                FROM `{staging_db}`.`stg_layanan_rs`
+                FROM `{staging_db}`.`stg_kesehatan_layanan_rs`
             ) l
 
             LEFT JOIN `{dwh_db}`.`dim_kesehatan_rs` drs
@@ -1985,7 +2472,7 @@ def create_kesehatan_tasks(
                     SUM(f.jumlah) AS jumlah,
                     MAX(f.sumber_database) AS sumber_database
 
-                FROM `{staging_db}`.`stg_fasilitas_rs` f
+                FROM `{staging_db}`.`stg_kesehatan_fasilitas_rs` f
 
                 LEFT JOIN `{dwh_db}`.`dim_kesehatan_rs` drs
                     ON f.id_rs = drs.id_rs
@@ -2036,7 +2523,7 @@ def create_kesehatan_tasks(
                     SUM(t.jumlah) AS jumlah_tenaga,
                     MAX(t.sumber_database) AS sumber_database
 
-                FROM `{staging_db}`.`stg_tenaga_medis` t
+                FROM `{staging_db}`.`stg_kesehatan_tenaga_medis` t
 
                 LEFT JOIN `{dwh_db}`.`dim_kesehatan_rs` drs
                     ON t.id_rs = drs.id_rs
@@ -2088,15 +2575,15 @@ def create_kesehatan_tasks(
 #    paginasi nyata (pagination.has_next / total / next).
 # 2. Penamaan kolom metadata mengikuti dukcapil.py, yaitu `sumber_database`
 #    dan `waktu_ekstraksi` (bukan `waktu_extract`), agar konsisten dalam satu
-#    schema raw_data. Primary key fakta memakai `waktu_key` (bukan `waktukey`)
+#    schema raw_kesehatan_data. Primary key fakta memakai `waktu_key` (bukan `waktukey`)
 #    agar konsisten dengan dim_waktu dan fact_penduduk yang sudah ada.
 # 3. `dim_waktu` dan `dim_dukcapil_penduduk` tidak dibuat ulang. `dim_waktu` diisi via
 #    INSERT IGNORE (baris lama tidak disentuh) untuk tanggal kasus historis +
 #    tanggal ETL. `dim_dukcapil_penduduk` dipakai murni sebagai lookup NIK (unik per NIK,
 #    format VARCHAR(16), 16 digit; lookup dibatasi maks. 1 baris per NIK).
-# 4. Sesuai pilihan user, `dim_kesehatan_fasilitas` (sumber stg_fasilitas_rs +
-#    stg_jenis_fasilitas_rs; UNIQUE (id_jenis_fasilitas, nama_fasilitas)) dan
-#    `dim_kesehatan_tenaga_medis` (dari stg_jenis_tenaga_medis; UNIQUE per
+# 4. Sesuai pilihan user, `dim_kesehatan_fasilitas` (sumber stg_kesehatan_fasilitas_rs +
+#    stg_kesehatan_jenis_fasilitas_rs; UNIQUE (id_jenis_fasilitas, nama_fasilitas)) dan
+#    `dim_kesehatan_tenaga_medis` (dari stg_kesehatan_jenis_tenaga_medis; UNIQUE per
 #    id_jenis_tenaga_medis) dipisah. Kolom `kategori_profesi` diletakkan pada
 #    dim_kesehatan_tenaga_medis (KTM001-KTM006 = Dokter, KTM007 = Perawat, else = Lainnya).
 # 5. `tenaga_key` memakai grain JENIS tenaga medis (bukan kelompok).
@@ -2113,9 +2600,9 @@ def create_kesehatan_tasks(
 #    API sumber mengembalikan tanggal dalam format YYYY-MM-DD (tidak ada
 #    konversi zona waktu pada kolom tanggal sumber). Idempotensi dijaga via
 #    UNIQUE KEY + ON DUPLICATE KEY UPDATE atau INSERT IGNORE.
-# 10. NIK dalam stg_pasien dinormalisasi: strip non-digit, 15 digit ditambah '0'
+# 10. NIK dalam stg_kesehatan_pasien dinormalisasi: strip non-digit, 15 digit ditambah '0'
 #     di depan, selain 16 digit dianggap invalid (NULL). Baris dengan validasi
-#     gagal dicatat di stg_reject beserta alasan (id kosong, NIK invalid, gender
+#     gagal dicatat di stg_kesehatan_reject beserta alasan (id kosong, NIK invalid, gender
 #     tidak dikenal, tanggal invalid/masa depan, referensi tidak ditemukan).
 #     Hitungan rejects per alasan di-log setelah transform_staging.
 # 11. extract_to_raw: jika endpoint mengembalikan 0 records, task gagal dengan
