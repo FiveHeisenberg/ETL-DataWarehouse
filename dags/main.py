@@ -62,11 +62,11 @@ PIPELINE_TASKS = [
     #     "create_tasks": create_dinsos_tasks,
     #     "api_base_url": "http://192.168.222.205:8000/api",
     # },
-    # {
-    #     'name': 'kesehatan',
-    #     "create_tasks": create_kesehatan_tasks,
-    #     'api_base_url': "http://192.168.222.152:8011/api/kemenkes",
-    # },
+    {
+        'name': 'kesehatan',
+        "create_tasks": create_kesehatan_tasks,
+        'api_base_url': "http://192.168.222.152:8011/api/kemenkes",
+    },
     # {
     #     'name': 'pangan',
     #     "create_tasks": create_pangan_tasks,
@@ -100,6 +100,7 @@ def execute_sql(statements):
     cursor = conn.cursor()
 
     try:
+        cursor.execute("SET SESSION sql_require_primary_key = 0")
         for statement in statements:
             if statement.strip():
                 cursor.execute(statement)

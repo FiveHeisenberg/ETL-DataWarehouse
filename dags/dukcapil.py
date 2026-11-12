@@ -70,7 +70,7 @@ def create_dukcapil_tasks(
 
             for table_name, endpoint in SOURCE_ENDPOINTS.items():
 
-                raw_table = f"raw_{table_name}"
+                raw_table = f"raw_dukcapil_{table_name.removeprefix('tb_')}"
 
                 url = f"{api_base_url}{endpoint}"
 
@@ -236,14 +236,12 @@ def create_dukcapil_tasks(
 
             f"""
             DROP TABLE IF EXISTS
-            `{staging_db}`.`stg_agama`;
+            `{staging_db}`.`_load_stg_dukcapil_agama`;
             """,
 
             f"""
-            CREATE TABLE `{staging_db}`.`stg_agama`
-            (
-                id BIGINT NOT NULL AUTO_INCREMENT PRIMARY KEY
-            ) AS
+            CREATE TABLE `{staging_db}`.`_load_stg_dukcapil_agama`
+            AS
 
             SELECT DISTINCT
                 TRIM(id_agama) AS id_agama,
@@ -252,7 +250,7 @@ def create_dukcapil_tasks(
                 sumber_database,
                 waktu_ekstraksi
 
-            FROM `{raw_db}`.`raw_tb_agama`
+            FROM `{raw_db}`.`raw_dukcapil_agama`
 
             WHERE
                 id_agama IS NOT NULL
@@ -265,14 +263,12 @@ def create_dukcapil_tasks(
 
             f"""
             DROP TABLE IF EXISTS
-            `{staging_db}`.`stg_provinsi`;
+            `{staging_db}`.`_load_stg_dukcapil_provinsi`;
             """,
 
             f"""
-            CREATE TABLE `{staging_db}`.`stg_provinsi`
-            (
-                id BIGINT NOT NULL AUTO_INCREMENT PRIMARY KEY
-            ) AS
+            CREATE TABLE `{staging_db}`.`_load_stg_dukcapil_provinsi`
+            AS
 
             SELECT DISTINCT
 
@@ -286,7 +282,7 @@ def create_dukcapil_tasks(
                 waktu_ekstraksi
 
             FROM
-                `{raw_db}`.`raw_tb_provinsi`
+                `{raw_db}`.`raw_dukcapil_provinsi`
 
             WHERE
                 id_provinsi IS NOT NULL
@@ -299,15 +295,13 @@ def create_dukcapil_tasks(
 
             f"""
             DROP TABLE IF EXISTS
-            `{staging_db}`.`stg_kabupaten_kota`;
+            `{staging_db}`.`_load_stg_dukcapil_kabupaten_kota`;
             """,
 
             f"""
             CREATE TABLE
-            `{staging_db}`.`stg_kabupaten_kota`
-            (
-                id BIGINT NOT NULL AUTO_INCREMENT PRIMARY KEY
-            ) AS
+            `{staging_db}`.`_load_stg_dukcapil_kabupaten_kota`
+            AS
 
             SELECT DISTINCT
 
@@ -320,11 +314,16 @@ def create_dukcapil_tasks(
                 TRIM(nama_kabupaten_kota)
                     AS nama_kabupaten_kota,
 
+                NULLIF(
+                    TRIM(luas_wilayah),
+                    ''
+                ) AS luas_wilayah,
+
                 sumber_database,
                 waktu_ekstraksi
 
             FROM
-                `{raw_db}`.`raw_tb_kabupaten_kota`
+                `{raw_db}`.`raw_dukcapil_kabupaten_kota`
 
             WHERE
                 id_kabupaten_kota IS NOT NULL
@@ -337,15 +336,13 @@ def create_dukcapil_tasks(
 
             f"""
             DROP TABLE IF EXISTS
-            `{staging_db}`.`stg_kecamatan`;
+            `{staging_db}`.`_load_stg_dukcapil_kecamatan`;
             """,
 
             f"""
             CREATE TABLE
-            `{staging_db}`.`stg_kecamatan`
-            (
-                id BIGINT NOT NULL AUTO_INCREMENT PRIMARY KEY
-            ) AS
+            `{staging_db}`.`_load_stg_dukcapil_kecamatan`
+            AS
 
             SELECT DISTINCT
 
@@ -362,7 +359,7 @@ def create_dukcapil_tasks(
                 waktu_ekstraksi
 
             FROM
-                `{raw_db}`.`raw_tb_kecamatan`
+                `{raw_db}`.`raw_dukcapil_kecamatan`
 
             WHERE
                 id_kecamatan IS NOT NULL
@@ -375,15 +372,13 @@ def create_dukcapil_tasks(
 
             f"""
             DROP TABLE IF EXISTS
-            `{staging_db}`.`stg_desa`;
+            `{staging_db}`.`_load_stg_dukcapil_desa`;
             """,
 
             f"""
             CREATE TABLE
-            `{staging_db}`.`stg_desa`
-            (
-                id BIGINT NOT NULL AUTO_INCREMENT PRIMARY KEY
-            ) AS
+            `{staging_db}`.`_load_stg_dukcapil_desa`
+            AS
 
             SELECT DISTINCT
 
@@ -400,7 +395,7 @@ def create_dukcapil_tasks(
                 waktu_ekstraksi
 
             FROM
-                `{raw_db}`.`raw_tb_desa`
+                `{raw_db}`.`raw_dukcapil_desa`
 
             WHERE
                 id_desa IS NOT NULL
@@ -413,15 +408,13 @@ def create_dukcapil_tasks(
 
             f"""
             DROP TABLE IF EXISTS
-            `{staging_db}`.`stg_alamat`;
+            `{staging_db}`.`_load_stg_dukcapil_alamat`;
             """,
 
             f"""
             CREATE TABLE
-            `{staging_db}`.`stg_alamat`
-            (
-                id BIGINT NOT NULL AUTO_INCREMENT PRIMARY KEY
-            ) AS
+            `{staging_db}`.`_load_stg_dukcapil_alamat`
+            AS
 
             SELECT DISTINCT
 
@@ -443,7 +436,7 @@ def create_dukcapil_tasks(
                 waktu_ekstraksi
 
             FROM
-                `{raw_db}`.`raw_tb_alamat`
+                `{raw_db}`.`raw_dukcapil_alamat`
 
             WHERE
                 id_alamat IS NOT NULL
@@ -456,15 +449,13 @@ def create_dukcapil_tasks(
 
             f"""
             DROP TABLE IF EXISTS
-            `{staging_db}`.`stg_status_perkawinan`;
+            `{staging_db}`.`_load_stg_dukcapil_status_perkawinan`;
             """,
 
             f"""
             CREATE TABLE
-            `{staging_db}`.`stg_status_perkawinan`
-            (
-                id BIGINT NOT NULL AUTO_INCREMENT PRIMARY KEY
-            ) AS
+            `{staging_db}`.`_load_stg_dukcapil_status_perkawinan`
+            AS
 
             SELECT DISTINCT
 
@@ -478,7 +469,7 @@ def create_dukcapil_tasks(
                 waktu_ekstraksi
 
             FROM
-                `{raw_db}`.`raw_tb_status_perkawinan`
+                `{raw_db}`.`raw_dukcapil_status_perkawinan`
 
             WHERE
                 id_status_perkawinan IS NOT NULL;
@@ -490,15 +481,13 @@ def create_dukcapil_tasks(
 
             f"""
             DROP TABLE IF EXISTS
-            `{staging_db}`.`stg_status_penduduk`;
+            `{staging_db}`.`_load_stg_dukcapil_status_penduduk`;
             """,
 
             f"""
             CREATE TABLE
-            `{staging_db}`.`stg_status_penduduk`
-            (
-                id BIGINT NOT NULL AUTO_INCREMENT PRIMARY KEY
-            ) AS
+            `{staging_db}`.`_load_stg_dukcapil_status_penduduk`
+            AS
 
             SELECT DISTINCT
 
@@ -512,7 +501,7 @@ def create_dukcapil_tasks(
                 waktu_ekstraksi
 
             FROM
-                `{raw_db}`.`raw_tb_status_penduduk`
+                `{raw_db}`.`raw_dukcapil_status_penduduk`
 
             WHERE
                 id_status_penduduk IS NOT NULL;
@@ -524,15 +513,13 @@ def create_dukcapil_tasks(
 
             f"""
             DROP TABLE IF EXISTS
-            `{staging_db}`.`stg_kartu_keluarga`;
+            `{staging_db}`.`_load_stg_dukcapil_kartu_keluarga`;
             """,
 
             f"""
             CREATE TABLE
-            `{staging_db}`.`stg_kartu_keluarga`
-            (
-                id BIGINT NOT NULL AUTO_INCREMENT PRIMARY KEY
-            ) AS
+            `{staging_db}`.`_load_stg_dukcapil_kartu_keluarga`
+            AS
 
             SELECT DISTINCT
 
@@ -557,7 +544,7 @@ def create_dukcapil_tasks(
                 waktu_ekstraksi
 
             FROM
-                `{raw_db}`.`raw_tb_kartu_keluarga`
+                `{raw_db}`.`raw_dukcapil_kartu_keluarga`
 
             WHERE
                 CHAR_LENGTH(
@@ -586,15 +573,13 @@ def create_dukcapil_tasks(
 
             f"""
             DROP TABLE IF EXISTS
-            `{staging_db}`.`stg_penduduk`;
+            `{staging_db}`.`_load_stg_dukcapil_penduduk`;
             """,
 
             f"""
             CREATE TABLE
-            `{staging_db}`.`stg_penduduk`
-            (
-                id BIGINT NOT NULL AUTO_INCREMENT PRIMARY KEY
-            ) AS
+            `{staging_db}`.`_load_stg_dukcapil_penduduk`
+            AS
 
             SELECT DISTINCT
 
@@ -661,7 +646,7 @@ def create_dukcapil_tasks(
                 p.waktu_ekstraksi
 
             FROM
-                `{raw_db}`.`raw_tb_penduduk` p
+                `{raw_db}`.`raw_dukcapil_penduduk` p
 
             WHERE
 
@@ -682,6 +667,40 @@ def create_dukcapil_tasks(
                 AND p.jenis_kelamin IN ('L', 'P');
             """,
         ]
+
+        staging_names = [
+            "agama",
+            "provinsi",
+            "kabupaten_kota",
+            "kecamatan",
+            "desa",
+            "alamat",
+            "status_perkawinan",
+            "status_penduduk",
+            "kartu_keluarga",
+            "penduduk",
+        ]
+
+        for name in staging_names:
+            load_table = f"_load_stg_dukcapil_{name}"
+            staging_table = f"stg_dukcapil_{name}"
+            transformations.extend([
+                f"""
+                CREATE TABLE IF NOT EXISTS `{staging_db}`.`{staging_table}`
+                LIKE `{staging_db}`.`{load_table}`;
+                """,
+                f"""
+                DELETE FROM `{staging_db}`.`{staging_table}`
+                WHERE YEAR(waktu_ekstraksi) = YEAR(CURDATE());
+                """,
+                f"""
+                INSERT INTO `{staging_db}`.`{staging_table}`
+                SELECT * FROM `{staging_db}`.`{load_table}`;
+                """,
+                f"""
+                DROP TABLE `{staging_db}`.`{load_table}`;
+                """,
+            ])
 
         execute_sql(
             [align_collation] + transformations
@@ -715,7 +734,9 @@ def create_dukcapil_tasks(
             "dim_dukcapil_status_penduduk",
             "dim_dukcapil_kartu_keluarga",
             "dim_wilayah_penduduk",
+            "dim_dukcapil_kabupaten_kota",
             "dim_dukcapil_penduduk",
+            "fact_dukcapil_luas_wilayah",
             "fact_dukcapil_penduduk",
         ]
 
@@ -928,6 +949,28 @@ def create_dukcapil_tasks(
             """,
 
             # =================================================
+            # DIM DUKCAPIL KABUPATEN KOTA
+            # =================================================
+
+            f"""
+            CREATE TABLE IF NOT EXISTS
+            `{dwh_db}`.`dim_dukcapil_kabupaten_kota`
+            (
+                kabupaten_kota_key INT NOT NULL AUTO_INCREMENT,
+                id_kabupaten_kota VARCHAR(10) NOT NULL,
+                nama_kabupaten_kota VARCHAR(100) DEFAULT NULL,
+                id_provinsi VARCHAR(10) DEFAULT NULL,
+                nama_provinsi VARCHAR(100) DEFAULT NULL,
+                sumber_database VARCHAR(100) DEFAULT NULL,
+                waktu_load DATETIME NOT NULL,
+                PRIMARY KEY (kabupaten_kota_key),
+                UNIQUE KEY uk_kabupaten_kota (id_kabupaten_kota)
+            ) ENGINE=InnoDB
+            DEFAULT CHARSET=utf8mb4
+            COLLATE=utf8mb4_0900_ai_ci;
+            """,
+
+            # =================================================
             # DIM PENDUDUK
             # =================================================
 
@@ -961,10 +1004,37 @@ def create_dukcapil_tasks(
             """,
 
             # =================================================
+            # FACT WILAYAH KABUPATEN KOTA
+            # =================================================
+
+            f"""
+            CREATE TABLE IF NOT EXISTS
+            `{dwh_db}`.`fact_dukcapil_luas_wilayah`
+            (
+                fact_wilayah_key INT NOT NULL AUTO_INCREMENT,
+                kabupaten_kota_key INT NOT NULL,
+                waktu_key INT NOT NULL,
+                luas_wilayah DECIMAL(10,2) DEFAULT NULL,
+                sumber_database VARCHAR(100) DEFAULT NULL,
+                waktu_load DATETIME NOT NULL,
+                PRIMARY KEY (fact_wilayah_key),
+                UNIQUE KEY uk_fact_wilayah
+                    (kabupaten_kota_key, waktu_key),
+                KEY idx_fact_wilayah_waktu (waktu_key),
+                CONSTRAINT fk_fwk_kabkota
+                    FOREIGN KEY (kabupaten_kota_key)
+                    REFERENCES `{dwh_db}`.`dim_dukcapil_kabupaten_kota`
+                    (kabupaten_kota_key)
+            ) ENGINE=InnoDB
+            DEFAULT CHARSET=utf8mb4
+            COLLATE=utf8mb4_0900_ai_ci;
+            """,
+
+            # =================================================
             # FACT PENDUDUK
             #
             # Grain:
-            # 1 penduduk = 1 record per hari snapshot
+            # 1 penduduk = 1 record per tahun snapshot
             # =================================================
 
             f"""
@@ -1043,12 +1113,7 @@ def create_dukcapil_tasks(
             )
 
             SELECT
-                CAST(
-                    DATE_FORMAT(
-                        CURDATE(),
-                        '%Y%m%d'
-                    ) AS UNSIGNED
-                ),
+                YEAR(CURDATE()),
 
                 CURDATE(),
 
@@ -1078,6 +1143,12 @@ def create_dukcapil_tasks(
                 NOW()
 
             ON DUPLICATE KEY UPDATE
+                tanggal = VALUES(tanggal),
+                hari = VALUES(hari),
+                bulan = VALUES(bulan),
+                nama_bulan = VALUES(nama_bulan),
+                kuartal = VALUES(kuartal),
+                tahun = VALUES(tahun),
                 waktu_load = VALUES(waktu_load);
             """,
 
@@ -1100,7 +1171,7 @@ def create_dukcapil_tasks(
                 sumber_database,
                 NOW()
 
-            FROM `{staging_db}`.`stg_agama`
+            FROM `{staging_db}`.`stg_dukcapil_agama`
 
             ON DUPLICATE KEY UPDATE
 
@@ -1135,7 +1206,7 @@ def create_dukcapil_tasks(
                 NOW()
 
             FROM
-                `{staging_db}`.`stg_status_perkawinan`
+                `{staging_db}`.`stg_dukcapil_status_perkawinan`
 
             ON DUPLICATE KEY UPDATE
 
@@ -1170,7 +1241,7 @@ def create_dukcapil_tasks(
                 NOW()
 
             FROM
-                `{staging_db}`.`stg_status_penduduk`
+                `{staging_db}`.`stg_dukcapil_status_penduduk`
 
             ON DUPLICATE KEY UPDATE
 
@@ -1209,7 +1280,7 @@ def create_dukcapil_tasks(
                 NOW()
 
             FROM
-                `{staging_db}`.`stg_kartu_keluarga`
+                `{staging_db}`.`stg_dukcapil_kartu_keluarga`
 
             ON DUPLICATE KEY UPDATE
 
@@ -1281,24 +1352,24 @@ def create_dukcapil_tasks(
                 NOW()
 
             FROM
-                `{staging_db}`.`stg_alamat` a
+                `{staging_db}`.`stg_dukcapil_alamat` a
 
             LEFT JOIN
-                `{staging_db}`.`stg_desa` d
+                `{staging_db}`.`stg_dukcapil_desa` d
                 ON a.id_desa = d.id_desa
 
             LEFT JOIN
-                `{staging_db}`.`stg_kecamatan` k
+                `{staging_db}`.`stg_dukcapil_kecamatan` k
                 ON d.id_kecamatan =
                    k.id_kecamatan
 
             LEFT JOIN
-                `{staging_db}`.`stg_kabupaten_kota` kab
+                `{staging_db}`.`stg_dukcapil_kabupaten_kota` kab
                 ON k.id_kabupaten_kota =
                    kab.id_kabupaten_kota
 
             LEFT JOIN
-                `{staging_db}`.`stg_provinsi` prov
+                `{staging_db}`.`stg_dukcapil_provinsi` prov
                 ON kab.id_provinsi =
                    prov.id_provinsi
 
@@ -1324,6 +1395,38 @@ def create_dukcapil_tasks(
 
                 waktu_load =
                     VALUES(waktu_load);
+            """,
+
+            # -----------------------------------------------
+            # DIM DUKCAPIL KABUPATEN KOTA
+            # -----------------------------------------------
+
+            f"""
+            INSERT INTO `{dwh_db}`.`dim_dukcapil_kabupaten_kota`
+            (
+                id_kabupaten_kota,
+                nama_kabupaten_kota,
+                id_provinsi,
+                nama_provinsi,
+                sumber_database,
+                waktu_load
+            )
+            SELECT
+                kab.id_kabupaten_kota,
+                kab.nama_kabupaten_kota,
+                kab.id_provinsi,
+                prov.nama_provinsi,
+                kab.sumber_database,
+                NOW()
+            FROM `{staging_db}`.`stg_dukcapil_kabupaten_kota` kab
+            LEFT JOIN `{staging_db}`.`stg_dukcapil_provinsi` prov
+                ON kab.id_provinsi = prov.id_provinsi
+            ON DUPLICATE KEY UPDATE
+                nama_kabupaten_kota = VALUES(nama_kabupaten_kota),
+                id_provinsi = VALUES(id_provinsi),
+                nama_provinsi = VALUES(nama_provinsi),
+                sumber_database = VALUES(sumber_database),
+                waktu_load = VALUES(waktu_load);
             """,
 
             # -----------------------------------------------
@@ -1354,7 +1457,7 @@ def create_dukcapil_tasks(
                 NOW()
 
             FROM
-                `{staging_db}`.`stg_penduduk`
+                `{staging_db}`.`stg_dukcapil_penduduk`
 
             ON DUPLICATE KEY UPDATE
 
@@ -1417,12 +1520,7 @@ def create_dukcapil_tasks(
 
             dkk.kartu_keluarga_key,
 
-            CAST(
-                DATE_FORMAT(
-                    CURDATE(),
-                    '%Y%m%d'
-                ) AS UNSIGNED
-            ) AS waktu_key,
+            YEAR(CURDATE()) AS waktu_key,
 
             CASE
                 WHEN sp.tanggal_lahir IS NOT NULL
@@ -1442,7 +1540,7 @@ def create_dukcapil_tasks(
             NOW() AS waktu_load
 
         FROM
-            `{staging_db}`.`stg_penduduk` sp
+            `{staging_db}`.`stg_dukcapil_penduduk` sp
 
         INNER JOIN
             `{dwh_db}`.`dim_dukcapil_penduduk` dp
@@ -1497,7 +1595,34 @@ def create_dukcapil_tasks(
                 VALUES(waktu_load);
         """
 
-        execute_sql([load_fact])
+        load_fact_wilayah = f"""
+        INSERT INTO `{dwh_db}`.`fact_dukcapil_luas_wilayah`
+        (
+            kabupaten_kota_key,
+            waktu_key,
+            luas_wilayah,
+            sumber_database,
+            waktu_load
+        )
+        SELECT
+            dkk.kabupaten_kota_key,
+            YEAR(CURDATE()),
+            CAST(
+                NULLIF(TRIM(sk.luas_wilayah), '')
+                AS DECIMAL(10,2)
+            ),
+            dkk.sumber_database,
+            NOW()
+        FROM `{dwh_db}`.`dim_dukcapil_kabupaten_kota` dkk
+        LEFT JOIN `{staging_db}`.`stg_dukcapil_kabupaten_kota` sk
+            ON dkk.id_kabupaten_kota = sk.id_kabupaten_kota
+        ON DUPLICATE KEY UPDATE
+            luas_wilayah = VALUES(luas_wilayah),
+            sumber_database = VALUES(sumber_database),
+            waktu_load = VALUES(waktu_load);
+        """
+
+        execute_sql([load_fact, load_fact_wilayah])
 
         logging.info(
             "Load ke Data Warehouse selesai."
