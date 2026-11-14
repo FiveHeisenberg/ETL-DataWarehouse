@@ -20,6 +20,13 @@ opencode.json
 MEMORY.md
 PANDUAN.md
 
+# Sensitive project documentation
+rekap_kepatuhan_pajak_daerah.txt
+rekap_kepatuhan_pajak_daerah.docx
+
+# Temporary scripts with secrets
+dags/seeder_dwh.py
+
 # Temporary Python/IDE files
 *.pyc
 *.pyo
