@@ -1,4 +1,4 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 import math, os
 from datetime import date, datetime
 from decimal import Decimal
@@ -11,7 +11,7 @@ from pymysql.cursors import DictCursor
 DB_HOST=os.getenv('DISPENDA_DB_HOST','127.0.0.1')
 DB_PORT=int(os.getenv('DISPENDA_DB_PORT','3306'))
 DB_USER=os.getenv('DISPENDA_DB_USER','root')
-DB_PASSWORD=os.getenv('DISPENDA_DB_PASSWORD','')
+DB_PASSWORD=os.getenv('DISPENDA_DB_PASSWORD',None) or None
 DB_NAME=os.getenv('DISPENDA_DB_NAME','db_dispenda')
 PAGE_SIZE_DEFAULT=100
 PAGE_SIZE_MAX=1000
@@ -29,7 +29,19 @@ app=FastAPI(title='REST API db_dispenda',description='REST API read-only untuk E
 app.add_middleware(CORSMiddleware,allow_origins=['*'],allow_credentials=False,allow_methods=['GET'],allow_headers=['*'])
 
 def get_connection():
- return pymysql.connect(host=DB_HOST,port=DB_PORT,user=DB_USER,password=DB_PASSWORD,database=DB_NAME,cursorclass=DictCursor,charset='utf8mb4',autocommit=True)
+ conn_kwargs={
+  'host':DB_HOST,
+  'port':DB_PORT,
+  'user':DB_USER,
+  'database':DB_NAME,
+  'cursorclass':DictCursor,
+  'charset':'utf8mb4',
+  'autocommit':True,
+  'auth_plugin_map':{'mysql_native_password':None}
+ }
+ if DB_PASSWORD: conn_kwargs['password']=DB_PASSWORD
+ else: conn_kwargs['password']=''
+ return pymysql.connect(**conn_kwargs)
 
 def json_safe(v:Any)->Any:
  if isinstance(v,(datetime,date)): return v.isoformat()
