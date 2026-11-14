@@ -2,9 +2,12 @@
 REM ========================================
 REM Dispenda API - Start Script
 REM ========================================
-REM Double-click file ini untuk menjalankan API server
 
 setlocal enabledelayedexpansion
+
+REM Get script directory
+set SCRIPT_DIR=%~dp0
+cd /d "%SCRIPT_DIR%"
 
 REM Check if Python installed
 python --version >nul 2>&1
@@ -48,8 +51,8 @@ echo.
 echo Press CTRL+C to stop
 echo.
 
-REM Start server
-python -m uvicorn main:app --host 127.0.0.1 --port 8000 --reload
+REM Start server (without reload to avoid watching root directory)
+python -m uvicorn main:app --host 127.0.0.1 --port 8000
 
 REM Keep window open if error
 if errorlevel 1 (

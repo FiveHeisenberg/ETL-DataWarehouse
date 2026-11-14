@@ -5,18 +5,14 @@ airflow_settings.yaml
 __pycache__/
 astro
 .venv
-.astro/standalone/
-.astro/worktrees/
+.astro/
 airflow-webserver.pid
 webserver_config.py
 airflow.cfg
 airflow.db
-.astro/*.local.yml
-.astro/*.local.yaml
 
 **/.astro/dbt_metadata.json
 **/.astro/manifest.slim.json
-<<<<<<< HEAD
 
 # AI Agent Configuration (Local Only)
 AGENTS.md
@@ -24,5 +20,11 @@ opencode.json
 MEMORY.md
 PANDUAN.md
 
-=======
->>>>>>> origin/etl/dinsos
+# Temporary Python/IDE files
+*.pyc
+*.pyo
+.pytest_cache/
+.mypy_cache/
+*.egg-info/
+dist/
+build/

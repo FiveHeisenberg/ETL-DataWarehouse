@@ -1,0 +1,52 @@
+=============================================================================================================================
+DATA BENCHMARK SEBARAN WAJIB PAJAK & TINGKAT KEPATUHAN PER DAERAH (PROVINSI ACEH)
+Sumber Database Silo: db_dispenda (raw_pendapatan_daerah_silo.sql)
+Sinkronisasi Wilayah: Dukcapil (23 Kabupaten/Kota)
+=============================================================================================================================
+
+Kode | Kabupaten / Kota            | Jumlah WP | Total Tag | Lunas | Belum | Kepatuhan (%) | Total Tagihan (Rp)  | Realisasi Lunas (Rp) | Status
+-----------------------------------------------------------------------------------------------------------------------------
+01   | Kota Banda Aceh             |    134 WP |     79   |    42 |    37 |       53.16% | Rp     470,389,000 | Rp      139,380,000 | SEDANG
+02   | Kota Sabang                 |     83 WP |     64   |    44 |    20 |       68.75% | Rp     249,805,000 | Rp      158,520,000 | TINGGI (Optimal)
+03   | Kota Langsa                 |     71 WP |     58   |    30 |    28 |       51.72% | Rp     309,480,000 | Rp       81,450,000 | SEDANG
+04   | Kota Lhokseumawe            |     83 WP |     77   |    32 |    45 |       41.56% | Rp     260,534,000 | Rp      117,660,000 | SEDANG
+05   | Kabupaten Aceh Barat        |    108 WP |    107   |    26 |    81 |       24.30% | Rp     702,801,000 | Rp       83,325,000 | RENDAH (Prioritas Intervensi)
+06   | Kabupaten Aceh Barat Daya   |     78 WP |     82   |    27 |    55 |       32.93% | Rp     426,040,000 | Rp       89,175,000 | RENDAH (Prioritas Intervensi)
+07   | Kabupaten Aceh Besar        |    171 WP |    154   |    34 |   120 |       22.08% | Rp     482,961,000 | Rp      126,705,000 | RENDAH (Prioritas Intervensi)
+08   | Kabupaten Aceh Jaya         |     84 WP |     80   |    43 |    37 |       53.75% | Rp     306,895,000 | Rp      140,370,000 | SEDANG
+09   | Kabupaten Aceh Selatan      |     94 WP |     95   |    25 |    70 |       26.32% | Rp     533,314,000 | Rp       92,370,000 | RENDAH (Prioritas Intervensi)
+10   | Kabupaten Aceh Singkil      |     71 WP |     74   |    30 |    44 |       40.54% | Rp     286,834,000 | Rp      103,575,000 | SEDANG
+11   | Kabupaten Aceh Tamiang      |     82 WP |     90   |    28 |    62 |       31.11% | Rp     494,572,000 | Rp      109,065,000 | RENDAH (Prioritas Intervensi)
+12   | Kabupaten Aceh Tengah       |     80 WP |     70   |    38 |    32 |       54.29% | Rp     315,760,000 | Rp      142,455,000 | SEDANG
+13   | Kabupaten Aceh Tenggara     |     86 WP |     95   |    32 |    63 |       33.68% | Rp     541,468,000 | Rp      122,580,000 | RENDAH (Prioritas Intervensi)
+14   | Kabupaten Aceh Utara        |     81 WP |     78   |    29 |    49 |       37.18% | Rp     256,307,000 | Rp      114,465,000 | SEDANG
+15   | Kabupaten Gayo Lues         |     69 WP |     64   |    41 |    23 |       64.06% | Rp     297,265,000 | Rp      144,975,000 | TINGGI (Optimal)
+16   | Kabupaten Pidie             |     77 WP |     72   |    32 |    40 |       44.44% | Rp     297,795,000 | Rp      114,405,000 | SEDANG
+17   | Kabupaten Pidie Jaya        |     62 WP |     58   |    35 |    23 |       60.34% | Rp     201,150,000 | Rp      133,260,000 | TINGGI (Optimal)
+18   | Kabupaten Simeulue          |     65 WP |     67   |    29 |    38 |       43.28% | Rp     326,090,000 | Rp       86,760,000 | SEDANG
+19   | Kabupaten Bireuen           |     86 WP |    120   |    86 |    34 |       71.67% | Rp     625,023,000 | Rp      300,000,000 | TINGGI (Optimal)
+20   | Kabupaten Nagan Raya        |     38 WP |     38   |    38 |     0 |      100.00% | Rp     165,525,000 | Rp      165,525,000 | TINGGI (Optimal)
+21   | Kota Subulussalam           |     22 WP |     22   |    22 |     0 |      100.00% | Rp      67,665,000 | Rp       67,665,000 | TINGGI (Optimal)
+22   | Kabupaten Bener Meriah      |     34 WP |     34   |    34 |     0 |      100.00% | Rp     109,020,000 | Rp      109,020,000 | TINGGI (Optimal)
+23   | Kabupaten Aceh Timur        |     35 WP |     35   |    35 |     0 |      100.00% | Rp     139,080,000 | Rp      139,080,000 | TINGGI (Optimal)
+-----------------------------------------------------------------------------------------------------------------------------
+TOTAL | 23 Daerah (Provinsi Aceh)   |   1794 WP |   1713   |   812 |   901 |       47.40% | Rp   7,865,773,000 | Rp    2,881,785,000 | Rata-rata
+=============================================================================================================================
+
+PETUNJUK PENGECEKAN DASHBOARD:
+1. Kartu KPI:
+   - Total Wajib Pajak      : 1,794 Jiwa
+   - Total Tagihan Diterbitkan : 1,713 Lembar (Rp 7,865,773,000)
+   - Realisasi Pembayaran    : 812 Lembar / 47.40% (Rp 2,881,785,000 / 36.64%)
+   - Piutang / Belum Lunas  : 901 Lembar (Rp 4,983,988,000)
+2. Top 3 Daerah Kepatuhan Tertinggi (Lembar):
+   - Nagan Raya (20), Subulussalam (21), Bener Meriah (22), Aceh Timur (23): 100.0%
+   - Kabupaten Bireuen (19): 71.67%
+   - Kota Sabang (02): 68.75%
+3. Bottom 3 Daerah Kepatuhan Terendah (Lembar):
+   - Kabupaten Aceh Besar (07): 22.08% (120 lembar belum bayar)
+   - Kabupaten Aceh Barat (05): 24.30% (81 lembar belum bayar)
+   - Kabupaten Aceh Selatan (09): 26.32% (70 lembar belum bayar)
+4. Cross-Domain Disnaker Correlation:
+   - Daerah dengan tingkat kepatuhan terendah berkolerasi dengan persentase pengangguran tinggi (>34% - 44%).
+=============================================================================================================================

@@ -51,6 +51,23 @@ def json_safe(v:Any)->Any:
 
 def rows_to_json(rows): return [{k:json_safe(v) for k,v in r.items()} for r in rows]
 
+def fetch_table_data(table:str,page:int=1,limit:int=PAGE_SIZE_DEFAULT):
+ offset=(page-1)*limit
+ conn=None
+ try:
+  conn=get_connection()
+  with conn.cursor() as c:
+   c.execute(f'SELECT COUNT(*) AS total FROM `{table}`')
+   total=int(c.fetchone()['total'])
+   total_pages=math.ceil(total/limit) if total else 0
+   c.execute(f'SELECT * FROM `{table}` LIMIT %s OFFSET %s',(limit,offset))
+   rows=c.fetchall()
+  return {'success':True,'data':rows_to_json(rows),'pagination':{'current_page':page,'per_page':limit,'total':total,'total_pages':total_pages,'has_next':page<total_pages}}
+ except pymysql.MySQLError as exc:
+  raise HTTPException(status_code=500,detail={'success':False,'error':'Database error','message':str(exc)})
+ finally:
+  if conn is not None: conn.close()
+
 @app.get('/',tags=['Health'])
 def root(): return {'success':True,'service':'REST API db_dispenda','version':app.version,'docs':'/docs'}
 
@@ -69,23 +86,33 @@ def health():
 def list_tables():
  return {'success':True,'data':[{'endpoint':f'/api/{e}','table':t} for e,t in TABLES.items()]}
 
-@app.get('/api/{endpoint}',tags=['Data'])
+@app.get('/api/kategori-pajak',tags=['Data - Pajak'])
+def get_kategori_pajak(page:int=Query(1,ge=1),limit:int=Query(PAGE_SIZE_DEFAULT,ge=1,le=PAGE_SIZE_MAX)):
+ return fetch_table_data('tb_kategori_pajak',page,limit)
+
+@app.get('/api/metode-bayar',tags=['Data - Pembayaran'])
+def get_metode_bayar(page:int=Query(1,ge=1),limit:int=Query(PAGE_SIZE_DEFAULT,ge=1,le=PAGE_SIZE_MAX)):
+ return fetch_table_data('tb_metode_bayar',page,limit)
+
+@app.get('/api/wajib-pajak',tags=['Data - Wajib Pajak'])
+def get_wajib_pajak(page:int=Query(1,ge=1),limit:int=Query(PAGE_SIZE_DEFAULT,ge=1,le=PAGE_SIZE_MAX)):
+ return fetch_table_data('tb_wajib_pajak',page,limit)
+
+@app.get('/api/objek-pajak',tags=['Data - Objek Pajak'])
+def get_objek_pajak(page:int=Query(1,ge=1),limit:int=Query(PAGE_SIZE_DEFAULT,ge=1,le=PAGE_SIZE_MAX)):
+ return fetch_table_data('tb_objek_pajak',page,limit)
+
+@app.get('/api/tagihan',tags=['Data - Tagihan'])
+def get_tagihan(page:int=Query(1,ge=1),limit:int=Query(PAGE_SIZE_DEFAULT,ge=1,le=PAGE_SIZE_MAX)):
+ return fetch_table_data('tb_tagihan',page,limit)
+
+@app.get('/api/pembayaran',tags=['Data - Pembayaran'])
+def get_pembayaran(page:int=Query(1,ge=1),limit:int=Query(PAGE_SIZE_DEFAULT,ge=1,le=PAGE_SIZE_MAX)):
+ return fetch_table_data('tb_pembayaran',page,limit)
+
+@app.get('/api/{endpoint}',tags=['Data'],include_in_schema=False)
 def get_table_data(endpoint:str,page:int=Query(1,ge=1),limit:int=Query(PAGE_SIZE_DEFAULT,ge=1,le=PAGE_SIZE_MAX)):
  table=TABLES.get(endpoint)
  if table is None:
   raise HTTPException(status_code=404,detail={'success':False,'error':f"Endpoint '{endpoint}' tidak tersedia.",'available_endpoints':list(TABLES)})
- offset=(page-1)*limit
- conn=None
- try:
-  conn=get_connection()
-  with conn.cursor() as c:
-   c.execute(f'SELECT COUNT(*) AS total FROM `{table}`')
-   total=int(c.fetchone()['total'])
-   total_pages=math.ceil(total/limit) if total else 0
-   c.execute(f'SELECT * FROM `{table}` LIMIT %s OFFSET %s',(limit,offset))
-   rows=c.fetchall()
-  return {'success':True,'data':rows_to_json(rows),'pagination':{'current_page':page,'per_page':limit,'total':total,'total_pages':total_pages,'has_next':page<total_pages}}
- except pymysql.MySQLError as exc:
-  raise HTTPException(status_code=500,detail={'success':False,'error':'Database error','message':str(exc)})
- finally:
-  if conn is not None: conn.close()
+ return fetch_table_data(table,page,limit)
