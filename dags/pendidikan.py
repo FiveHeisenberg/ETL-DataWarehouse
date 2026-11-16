@@ -42,17 +42,6 @@ def create_pendidikan_tasks(
     dwh_db,
     api_base_url,
 ):
-<<<<<<< HEAD
-    """
-    execute_sql      : helper untuk jalanin list query SQL (didefinisikan di main.py)
-    get_mysql_hook   : helper untuk koneksi ke server raw_data & staging_area
-    raw_db           : nama database raw_data
-    staging_db       : nama database staging_area
-    dwh_db           : nama database dwh
-    api_base_url     : base URL API sumber pendidikan, mis. "http://...:5000/api"
-    """
-=======
->>>>>>> origin/etl/pendidikan
 
     # ========================================================
     # TASK: EXTRACT API -> RAW_DATA
@@ -70,10 +59,6 @@ def create_pendidikan_tasks(
             for table_name, endpoint in SOURCE_ENDPOINTS.items():
 
                 raw_table = f"raw_{table_name}"
-<<<<<<< HEAD
-=======
-
->>>>>>> origin/etl/pendidikan
                 url = f"{api_base_url}{endpoint}"
 
                 logging.info(
@@ -340,104 +325,11 @@ def create_pendidikan_tasks(
             FROM `{raw_db}`.`raw_tb_ptk`
 
             WHERE
-<<<<<<< HEAD
-                -- NIK wajib 16 digit
-                CHAR_LENGTH(REGEXP_REPLACE(nik, '[^0-9]', '')) = 16
-
-                -- Nama tidak boleh kosong
-                AND nama_ptk IS NOT NULL
-                AND TRIM(nama_ptk) <> ''
-
-                -- Jenis kelamin harus valid
-                AND jenis_kelamin IN ('L', 'P')
-
-                AND id_sekolah IS NOT NULL;
-            """,
-
-            # =================================================
-            # SISWA
-            # Data Cleansing, Standardization, Validation
-            # =================================================
-
-            f"""
-            DROP TABLE IF EXISTS
-            `{staging_db}`.`stg_siswa`;
-            """,
-
-            f"""
-            CREATE TABLE `{staging_db}`.`stg_siswa`
-            (
-                id BIGINT NOT NULL AUTO_INCREMENT PRIMARY KEY
-            ) AS
-
-            SELECT DISTINCT
-
-                REGEXP_REPLACE(nik, '[^0-9]', '') AS nik,
-
-                REGEXP_REPLACE(nisn, '[^0-9]', '') AS nisn,
-
-                TRIM(nama_siswa) AS nama_siswa,
-
-                CASE
-                    WHEN UPPER(TRIM(jenis_kelamin)) = 'L' THEN 'L'
-                    WHEN UPPER(TRIM(jenis_kelamin)) = 'P' THEN 'P'
-                    ELSE NULL
-                END AS jenis_kelamin,
-
-                CASE
-                    WHEN tanggal_lahir REGEXP '^[0-9]{{4}}-[0-9]{{2}}-[0-9]{{2}}$'
-                        AND tanggal_lahir <= CURDATE()
-                    THEN tanggal_lahir
-                    ELSE NULL
-                END AS tanggal_lahir,
-
-                TRIM(id_sekolah) AS id_sekolah,
-                CAST(id_waktu AS UNSIGNED) AS id_waktu,
-
-                NULLIF(TRIM(kelas), '') AS kelas,
-                NULLIF(TRIM(jurusan), '') AS jurusan,
-
-                CASE
-                    WHEN tahun_masuk REGEXP '^[0-9]{{4}}$'
-                    THEN CAST(tahun_masuk AS UNSIGNED)
-                    ELSE NULL
-                END AS tahun_masuk,
-
-                CASE
-                    WHEN UPPER(TRIM(status_siswa)) = 'AKTIF' THEN 'Aktif'
-                    WHEN UPPER(TRIM(status_siswa)) = 'LULUS' THEN 'Lulus'
-                    WHEN UPPER(TRIM(status_siswa)) = 'PINDAH' THEN 'Pindah'
-                    WHEN UPPER(TRIM(status_siswa)) = 'KELUAR' THEN 'Keluar'
-                    ELSE NULL
-                END AS status_siswa,
-
-                sumber_database,
-                waktu_ekstraksi
-
-            FROM `{raw_db}`.`raw_tb_siswa`
-
-            WHERE
-                -- NISN wajib 10 digit
-                CHAR_LENGTH(REGEXP_REPLACE(nisn, '[^0-9]', '')) = 10
-
-                -- NIK wajib 16 digit
-                AND CHAR_LENGTH(REGEXP_REPLACE(nik, '[^0-9]', '')) = 16
-
-                -- Nama tidak boleh kosong
-                AND nama_siswa IS NOT NULL
-                AND TRIM(nama_siswa) <> ''
-
-                -- Jenis kelamin harus valid
-                AND jenis_kelamin IN ('L', 'P')
-
-                AND id_sekolah IS NOT NULL;
-=======
                 CHAR_LENGTH(
                     REGEXP_REPLACE(nik, '[^0-9]', '')
                 ) = 16
                 AND id_ptk IS NOT NULL
                 AND TRIM(nama_ptk) <> '';
->>>>>>> origin/etl/pendidikan
             """,
 
             # =================================================
