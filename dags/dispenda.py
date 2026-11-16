@@ -361,7 +361,10 @@ def create_dispenda_tasks(
                     ''
                 ) AS alamat,
 
-                NULL AS id_kabupaten_kota,
+                NULLIF(
+                    TRIM(wp.id_kabupaten_kota),
+                    ''
+                ) AS id_kabupaten_kota,
 
                 NULLIF(
                     TRIM(wp.npwpd),
@@ -1468,11 +1471,11 @@ def create_dispenda_tasks(
                 waktu_load
             )
 
-            SELECT
+            SELECT DISTINCT
 
                 ft.fact_tagihan_key,
 
-                dmb.metode_bayar_key,
+                COALESCE(dmb.metode_bayar_key, 0) AS metode_bayar_key,
 
                 CAST(
                     DATE_FORMAT(
@@ -1508,6 +1511,10 @@ def create_dispenda_tasks(
             LEFT JOIN
                 `{dwh_db}`.`dim_dispenda_metode_bayar` dmb
                 ON sp.metode_bayar = dmb.metode_bayar
+
+            WHERE sp.id_pembayaran IS NOT NULL
+                AND sp.id_tagihan IS NOT NULL
+                AND ft.fact_tagihan_key IS NOT NULL
 
             ON DUPLICATE KEY UPDATE
 
