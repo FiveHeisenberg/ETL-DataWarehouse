@@ -103,12 +103,14 @@ def execute_sql(statements):
         cursor.execute("SET SESSION sql_require_primary_key = 0")
         for statement in statements:
             if statement.strip():
+                logging.info(f"Executing SQL statement {i+1}/{len(statements)}: {statement[:100]}...")
                 cursor.execute(statement)
 
         conn.commit()
 
-    except Exception:
+    except Exception as e:
         conn.rollback()
+        logging.error(f"Failed at statement {i+1}: {statement[:500]}")
         raise
 
     finally:
