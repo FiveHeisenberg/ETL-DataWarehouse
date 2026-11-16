@@ -36,6 +36,8 @@ from dinsos import create_dinsos_tasks
 from kesehatan import create_kesehatan_tasks
 from pangan import create_pangan_tasks
 from infrastruktur import create_infrastruktur_tasks
+from ketangguhanbencana import create_ketangguhanbencana_tasks
+
 
 
 PIPELINE_TASKS = [
@@ -77,6 +79,11 @@ PIPELINE_TASKS = [
     {
         "name": "infrastruktur",
         "create_tasks": create_infrastruktur_tasks,
+        "api_base_url": "http://192.168.222.57:8000/api"
+    },
+    {
+        "name": "ketangguhanbencana",
+        "create_tasks": create_ketangguhanbencana_tasks,
         "api_base_url": "http://192.168.222.57:8000/api",
     },
         
