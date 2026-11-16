@@ -59,7 +59,7 @@ PIPELINE_TASKS = [
     {
         "name": "pendidikan",
         "create_tasks": create_pendidikan_tasks,
-        "api_base_url": "http://192.168.222.180:5000/api",
+        "api_base_url": "http://10.140.214.15:5000/api",
     },
     {
         "name": "dinsos",

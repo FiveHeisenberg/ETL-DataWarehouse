@@ -11,17 +11,24 @@ from airflow.sdk import task
 # ============================================================
 # KONFIGURASI DOMAIN PENDIDIKAN
 # ============================================================
-# Sesuai skema db_pendidikan:
-# tb_waktu, tb_sekolah, tb_ptk, tb_siswa, tb_sarana, tb_pendidikan
+#
+# TODO: isi endpoint di bawah sesuai API pendidikan kamu.
+# Base URL-nya (api_base_url) diisi di main.py, bukan di sini
+# -- lihat instruksi di bagian bawah file ini.
+#
+# Kalau nama endpoint di API kamu beda dari tebakan di bawah,
+# tinggal sesuaikan value-nya (key kiri = nama tabel, JANGAN
+# diubah; value kanan = path endpoint, SESUAIKAN).
+# ============================================================
+
 SOURCE_ENDPOINTS = {
     "tb_waktu":      "/extraction/waktu",
     "tb_sekolah":    "/extraction/sekolah",
     "tb_ptk":        "/extraction/ptk",
-    "tb_siswa":      "/extraction/siswa",
     "tb_sarana":     "/extraction/sarana",
+    "tb_siswa":      "/extraction/siswa",
     "tb_pendidikan": "/extraction/pendidikan",
 }
-
 
 # ============================================================
 # PIPELINE PENDIDIKAN
@@ -35,6 +42,7 @@ def create_pendidikan_tasks(
     dwh_db,
     api_base_url,
 ):
+<<<<<<< HEAD
     """
     execute_sql      : helper untuk jalanin list query SQL (didefinisikan di main.py)
     get_mysql_hook   : helper untuk koneksi ke server raw_data & staging_area
@@ -43,6 +51,8 @@ def create_pendidikan_tasks(
     dwh_db           : nama database dwh
     api_base_url     : base URL API sumber pendidikan, mis. "http://...:5000/api"
     """
+=======
+>>>>>>> origin/etl/pendidikan
 
     # ========================================================
     # TASK: EXTRACT API -> RAW_DATA
@@ -60,6 +70,10 @@ def create_pendidikan_tasks(
             for table_name, endpoint in SOURCE_ENDPOINTS.items():
 
                 raw_table = f"raw_{table_name}"
+<<<<<<< HEAD
+=======
+
+>>>>>>> origin/etl/pendidikan
                 url = f"{api_base_url}{endpoint}"
 
                 logging.info(
@@ -200,18 +214,14 @@ def create_pendidikan_tasks(
     @task
     def transform_staging():
 
-        logging.info("Memulai proses transform...")
-
-        align_collation = f"""
-        ALTER DATABASE `{staging_db}`
-        CHARACTER SET utf8mb4
-        COLLATE utf8mb4_0900_ai_ci;
-        """
+        logging.info(
+            "Memulai proses transform..."
+        )
 
         transformations = [
 
             # =================================================
-            # WAKTU (referensi, harus bersih duluan)
+            # WAKTU
             # =================================================
 
             f"""
@@ -226,32 +236,12 @@ def create_pendidikan_tasks(
             ) AS
 
             SELECT DISTINCT
-                CAST(id_waktu AS UNSIGNED) AS id_waktu,
-                CAST(tahun AS UNSIGNED) AS tahun,
-
-                CASE
-                    WHEN UPPER(TRIM(semester)) = 'GANJIL' THEN 'Ganjil'
-                    WHEN UPPER(TRIM(semester)) = 'GENAP' THEN 'Genap'
-                    ELSE NULL
-                END AS semester,
-
-                CASE
-                    WHEN tanggal_mulai REGEXP '^[0-9]{{4}}-[0-9]{{2}}-[0-9]{{2}}$'
-                    THEN tanggal_mulai
-                    ELSE NULL
-                END AS tanggal_mulai,
-
-                CASE
-                    WHEN tanggal_selesai REGEXP '^[0-9]{{4}}-[0-9]{{2}}-[0-9]{{2}}$'
-                    THEN tanggal_selesai
-                    ELSE NULL
-                END AS tanggal_selesai,
-
-                CASE
-                    WHEN UPPER(TRIM(status_periode)) = 'AKTIF' THEN 'Aktif'
-                    WHEN UPPER(TRIM(status_periode)) = 'TIDAK AKTIF' THEN 'Tidak Aktif'
-                    ELSE 'Tidak Aktif'
-                END AS status_periode,
+                TRIM(id_waktu) AS id_waktu,
+                TRIM(tahun) AS tahun,
+                TRIM(semester) AS semester,
+                tanggal_mulai,
+                tanggal_selesai,
+                TRIM(status_periode) AS status_periode,
 
                 sumber_database,
                 waktu_ekstraksi
@@ -259,12 +249,11 @@ def create_pendidikan_tasks(
             FROM `{raw_db}`.`raw_tb_waktu`
 
             WHERE
-                id_waktu IS NOT NULL
-                AND tahun IS NOT NULL;
+                id_waktu IS NOT NULL;
             """,
 
             # =================================================
-            # SEKOLAH (referensi, harus bersih duluan)
+            # SEKOLAH
             # =================================================
 
             f"""
@@ -282,43 +271,13 @@ def create_pendidikan_tasks(
                 TRIM(id_sekolah) AS id_sekolah,
                 TRIM(npsn) AS npsn,
                 TRIM(nama_sekolah) AS nama_sekolah,
-
-                CASE
-                    WHEN UPPER(TRIM(jenjang)) IN
-                        ('PAUD','TK','SD','SMP','SMA','SMK','SLB')
-                    THEN UPPER(TRIM(jenjang))
-                    ELSE NULL
-                END AS jenjang,
-
-                CASE
-                    WHEN UPPER(TRIM(status_sekolah)) = 'NEGERI' THEN 'Negeri'
-                    WHEN UPPER(TRIM(status_sekolah)) = 'SWASTA' THEN 'Swasta'
-                    ELSE NULL
-                END AS status_sekolah,
-
-                CASE
-                    WHEN UPPER(TRIM(akreditasi)) IN ('A','B','C')
-                    THEN UPPER(TRIM(akreditasi))
-                    WHEN akreditasi IS NULL
-                        OR TRIM(akreditasi) = ''
-                    THEN 'Belum Terakreditasi'
-                    ELSE 'Belum Terakreditasi'
-                END AS akreditasi,
-
-                NULLIF(TRIM(id_desa), '') AS id_desa,
-                NULLIF(TRIM(alamat_sekolah), '') AS alamat_sekolah,
-
-                CASE
-                    WHEN UPPER(TRIM(status_operasional)) = 'AKTIF' THEN 'Aktif'
-                    WHEN UPPER(TRIM(status_operasional)) = 'TIDAK AKTIF' THEN 'Tidak Aktif'
-                    ELSE 'Aktif'
-                END AS status_operasional,
-
-                CASE
-                    WHEN tahun_berdiri REGEXP '^[0-9]{{4}}$'
-                    THEN CAST(tahun_berdiri AS UNSIGNED)
-                    ELSE NULL
-                END AS tahun_berdiri,
+                TRIM(jenjang) AS jenjang,
+                TRIM(status_sekolah) AS status_sekolah,
+                TRIM(akreditasi) AS akreditasi,
+                TRIM(id_desa) AS id_desa,
+                TRIM(alamat_sekolah) AS alamat_sekolah,
+                TRIM(status_operasional) AS status_operasional,
+                TRIM(tahun_berdiri) AS tahun_berdiri,
 
                 sumber_database,
                 waktu_ekstraksi
@@ -331,7 +290,7 @@ def create_pendidikan_tasks(
             """,
 
             # =================================================
-            # PTK (Pendidik & Tenaga Kependidikan)
+            # PTK (Guru & Tenaga Kependidikan)
             # =================================================
 
             f"""
@@ -348,7 +307,8 @@ def create_pendidikan_tasks(
             SELECT DISTINCT
                 TRIM(id_ptk) AS id_ptk,
 
-                REGEXP_REPLACE(nik, '[^0-9]', '') AS nik,
+                REGEXP_REPLACE(nik, '[^0-9]', '')
+                    AS nik,
 
                 NULLIF(
                     REGEXP_REPLACE(nuptk, '[^0-9]', ''),
@@ -358,30 +318,21 @@ def create_pendidikan_tasks(
                 TRIM(nama_ptk) AS nama_ptk,
 
                 CASE
-                    WHEN UPPER(TRIM(jenis_kelamin)) = 'L' THEN 'L'
-                    WHEN UPPER(TRIM(jenis_kelamin)) = 'P' THEN 'P'
+                    WHEN UPPER(TRIM(jenis_kelamin)) = 'L'
+                        THEN 'L'
+                    WHEN UPPER(TRIM(jenis_kelamin)) = 'P'
+                        THEN 'P'
                     ELSE NULL
                 END AS jenis_kelamin,
 
                 TRIM(id_sekolah) AS id_sekolah,
-
-                NULLIF(TRIM(jenis_ptk), '') AS jenis_ptk,
-                NULLIF(TRIM(status_kepegawaian), '') AS status_kepegawaian,
-                NULLIF(TRIM(pendidikan_terakhir), '') AS pendidikan_terakhir,
-                NULLIF(TRIM(bidang_studi), '') AS bidang_studi,
-                NULLIF(TRIM(jabatan), '') AS jabatan,
-
-                CASE
-                    WHEN tahun_masuk REGEXP '^[0-9]{{4}}$'
-                    THEN CAST(tahun_masuk AS UNSIGNED)
-                    ELSE NULL
-                END AS tahun_masuk,
-
-                CASE
-                    WHEN UPPER(TRIM(status_ptk)) = 'AKTIF' THEN 'Aktif'
-                    WHEN UPPER(TRIM(status_ptk)) = 'TIDAK AKTIF' THEN 'Tidak Aktif'
-                    ELSE 'Aktif'
-                END AS status_ptk,
+                TRIM(jenis_ptk) AS jenis_ptk,
+                TRIM(status_kepegawaian) AS status_kepegawaian,
+                TRIM(pendidikan_terakhir) AS pendidikan_terakhir,
+                TRIM(bidang_studi) AS bidang_studi,
+                TRIM(jabatan) AS jabatan,
+                TRIM(tahun_masuk) AS tahun_masuk,
+                TRIM(status_ptk) AS status_ptk,
 
                 sumber_database,
                 waktu_ekstraksi
@@ -389,6 +340,7 @@ def create_pendidikan_tasks(
             FROM `{raw_db}`.`raw_tb_ptk`
 
             WHERE
+<<<<<<< HEAD
                 -- NIK wajib 16 digit
                 CHAR_LENGTH(REGEXP_REPLACE(nik, '[^0-9]', '')) = 16
 
@@ -479,6 +431,13 @@ def create_pendidikan_tasks(
                 AND jenis_kelamin IN ('L', 'P')
 
                 AND id_sekolah IS NOT NULL;
+=======
+                CHAR_LENGTH(
+                    REGEXP_REPLACE(nik, '[^0-9]', '')
+                ) = 16
+                AND id_ptk IS NOT NULL
+                AND TRIM(nama_ptk) <> '';
+>>>>>>> origin/etl/pendidikan
             """,
 
             # =================================================
@@ -497,24 +456,26 @@ def create_pendidikan_tasks(
             ) AS
 
             SELECT DISTINCT
-                CAST(id_sarana AS UNSIGNED) AS id_sarana,
+                TRIM(id_sarana) AS id_sarana,
                 TRIM(id_sekolah) AS id_sekolah,
-                CAST(id_waktu AS UNSIGNED) AS id_waktu,
+                TRIM(id_waktu) AS id_waktu,
 
-                COALESCE(CAST(jumlah_ruang_kelas AS UNSIGNED), 0) AS jumlah_ruang_kelas,
-                COALESCE(CAST(jumlah_laboratorium AS UNSIGNED), 0) AS jumlah_laboratorium,
-                COALESCE(CAST(jumlah_perpustakaan AS UNSIGNED), 0) AS jumlah_perpustakaan,
-                COALESCE(CAST(jumlah_toilet AS UNSIGNED), 0) AS jumlah_toilet,
-                COALESCE(CAST(jumlah_ruang_guru AS UNSIGNED), 0) AS jumlah_ruang_guru,
-                COALESCE(CAST(jumlah_ruang_kepala AS UNSIGNED), 0) AS jumlah_ruang_kepala,
-                COALESCE(CAST(jumlah_ruang_rusak AS UNSIGNED), 0) AS jumlah_ruang_rusak,
+                CAST(jumlah_ruang_kelas AS UNSIGNED)
+                    AS jumlah_ruang_kelas,
+                CAST(jumlah_laboratorium AS UNSIGNED)
+                    AS jumlah_laboratorium,
+                CAST(jumlah_perpustakaan AS UNSIGNED)
+                    AS jumlah_perpustakaan,
+                CAST(jumlah_toilet AS UNSIGNED)
+                    AS jumlah_toilet,
+                CAST(jumlah_ruang_guru AS UNSIGNED)
+                    AS jumlah_ruang_guru,
+                CAST(jumlah_ruang_kepala AS UNSIGNED)
+                    AS jumlah_ruang_kepala,
+                CAST(jumlah_ruang_rusak AS UNSIGNED)
+                    AS jumlah_ruang_rusak,
 
-                CASE
-                    WHEN UPPER(TRIM(kondisi_sarana)) = 'BAIK' THEN 'Baik'
-                    WHEN UPPER(TRIM(kondisi_sarana)) = 'RUSAK RINGAN' THEN 'Rusak Ringan'
-                    WHEN UPPER(TRIM(kondisi_sarana)) = 'RUSAK BERAT' THEN 'Rusak Berat'
-                    ELSE NULL
-                END AS kondisi_sarana,
+                TRIM(kondisi_sarana) AS kondisi_sarana,
 
                 sumber_database,
                 waktu_ekstraksi
@@ -523,11 +484,67 @@ def create_pendidikan_tasks(
 
             WHERE
                 id_sarana IS NOT NULL
-                AND id_sekolah IS NOT NULL;
+                AND id_sekolah IS NOT NULL
+                AND id_waktu IS NOT NULL;
             """,
 
             # =================================================
-            # PENDIDIKAN (metrik agregat per sekolah per periode)
+            # SISWA
+            # =================================================
+
+            f"""
+            DROP TABLE IF EXISTS
+            `{staging_db}`.`stg_siswa`;
+            """,
+
+            f"""
+            CREATE TABLE `{staging_db}`.`stg_siswa` AS
+
+            SELECT DISTINCT
+                REGEXP_REPLACE(nik, '[^0-9]', '')
+                    AS nik,
+
+                TRIM(nisn) AS nisn,
+                TRIM(nama_siswa) AS nama_siswa,
+
+                CASE
+                    WHEN UPPER(TRIM(jenis_kelamin)) = 'L'
+                        THEN 'L'
+                    WHEN UPPER(TRIM(jenis_kelamin)) = 'P'
+                        THEN 'P'
+                    ELSE NULL
+                END AS jenis_kelamin,
+
+                CASE
+                    WHEN tanggal_lahir <= CURDATE()
+                        THEN tanggal_lahir
+                    ELSE NULL
+                END AS tanggal_lahir,
+
+                TRIM(id_sekolah) AS id_sekolah,
+                TRIM(id_waktu) AS id_waktu,
+                TRIM(kelas) AS kelas,
+
+                NULLIF(TRIM(jurusan), '') AS jurusan,
+
+                TRIM(tahun_masuk) AS tahun_masuk,
+                TRIM(status_siswa) AS status_siswa,
+
+                sumber_database,
+                waktu_ekstraksi
+
+            FROM `{raw_db}`.`raw_tb_siswa`
+
+            WHERE
+                CHAR_LENGTH(
+                    REGEXP_REPLACE(nik, '[^0-9]', '')
+                ) = 16
+                AND TRIM(nama_siswa) <> ''
+                AND UPPER(TRIM(jenis_kelamin)) IN ('L', 'P');
+            """,
+
+            # =================================================
+            # PENDIDIKAN (metrik sekolah per periode)
             # =================================================
 
             f"""
@@ -542,31 +559,30 @@ def create_pendidikan_tasks(
             ) AS
 
             SELECT DISTINCT
-                CAST(id_pendidikan AS UNSIGNED) AS id_pendidikan,
+                TRIM(id_pendidikan) AS id_pendidikan,
                 TRIM(id_sekolah) AS id_sekolah,
-                CAST(id_waktu AS UNSIGNED) AS id_waktu,
+                TRIM(id_waktu) AS id_waktu,
 
-                COALESCE(CAST(jumlah_siswa AS UNSIGNED), 0) AS jumlah_siswa,
-                COALESCE(CAST(jumlah_guru AS UNSIGNED), 0) AS jumlah_guru,
-                COALESCE(CAST(jumlah_rombel AS UNSIGNED), 0) AS jumlah_rombel,
-                COALESCE(CAST(jumlah_mapel AS UNSIGNED), 0) AS jumlah_mapel,
-                COALESCE(CAST(jumlah_jam_pembelajaran AS UNSIGNED), 0) AS jumlah_jam_pembelajaran,
-
-                CASE
-                    WHEN CAST(rata_rata_nilai AS DECIMAL(5,2)) BETWEEN 0 AND 100
-                    THEN CAST(rata_rata_nilai AS DECIMAL(5,2))
-                    ELSE NULL
-                END AS rata_rata_nilai,
-
-                CASE
-                    WHEN CAST(persentase_kelulusan AS DECIMAL(5,2)) BETWEEN 0 AND 100
-                    THEN CAST(persentase_kelulusan AS DECIMAL(5,2))
-                    ELSE NULL
-                END AS persentase_kelulusan,
-
-                COALESCE(CAST(jumlah_lulus AS UNSIGNED), 0) AS jumlah_lulus,
-                COALESCE(CAST(jumlah_mengulang AS UNSIGNED), 0) AS jumlah_mengulang,
-                COALESCE(CAST(jumlah_putus_sekolah AS UNSIGNED), 0) AS jumlah_putus_sekolah,
+                CAST(jumlah_siswa AS UNSIGNED)
+                    AS jumlah_siswa,
+                CAST(jumlah_guru AS UNSIGNED)
+                    AS jumlah_guru,
+                CAST(jumlah_rombel AS UNSIGNED)
+                    AS jumlah_rombel,
+                CAST(jumlah_mapel AS UNSIGNED)
+                    AS jumlah_mapel,
+                CAST(jumlah_jam_pembelajaran AS UNSIGNED)
+                    AS jumlah_jam_pembelajaran,
+                CAST(rata_rata_nilai AS DECIMAL(5,2))
+                    AS rata_rata_nilai,
+                CAST(persentase_kelulusan AS DECIMAL(5,2))
+                    AS persentase_kelulusan,
+                CAST(jumlah_lulus AS UNSIGNED)
+                    AS jumlah_lulus,
+                CAST(jumlah_mengulang AS UNSIGNED)
+                    AS jumlah_mengulang,
+                CAST(jumlah_putus_sekolah AS UNSIGNED)
+                    AS jumlah_putus_sekolah,
 
                 sumber_database,
                 waktu_ekstraksi
@@ -580,17 +596,148 @@ def create_pendidikan_tasks(
             """,
         ]
 
-        execute_sql([align_collation] + transformations)
+        execute_sql(transformations)
 
-        logging.info("Transform staging pendidikan selesai.")
+        logging.info(
+            "Transform staging selesai."
+        )
 
     # ========================================================
-    # WIRING (sampai staging_area dulu)
+    # WIRING
+    # Cuma sampai staging dulu sesuai arahan -> load_to_dwh
+    # menyusul belakangan setelah semua source aman di staging.
+    # ========================================================
+    
+        # ========================================================
+    # TASK: LOAD STAGING -> DATA WAREHOUSE
     # ========================================================
 
+    @task
+    def load_to_dwh():
+
+        logging.info("Memulai proses load ke Data Warehouse...")
+
+        transformations = [
+
+            # =================================================
+            # DIM WAKTU
+            # =================================================
+
+            f"""
+            DROP TABLE IF EXISTS
+            `{dwh_db}`.`dim_waktu`;
+            """,
+
+            f"""
+            CREATE TABLE `{dwh_db}`.`dim_waktu` AS
+
+            SELECT
+                id_waktu,
+                tahun,
+                semester,
+                tanggal_mulai,
+                tanggal_selesai,
+                status_periode
+            FROM `{staging_db}`.`stg_waktu`;
+            """,
+
+            # =================================================
+            # DIM SEKOLAH
+            # =================================================
+
+            f"""
+            DROP TABLE IF EXISTS
+            `{dwh_db}`.`dim_sekolah`;
+            """,
+
+            f"""
+            CREATE TABLE `{dwh_db}`.`dim_sekolah` AS
+
+            SELECT
+                id_sekolah,
+                npsn,
+                nama_sekolah,
+                jenjang,
+                status_sekolah,
+                akreditasi,
+                id_desa,
+                alamat_sekolah,
+                status_operasional,
+                tahun_berdiri
+            FROM `{staging_db}`.`stg_sekolah`;
+            """,
+
+            # =================================================
+            # DIM PTK
+            # =================================================
+
+            f"""
+            DROP TABLE IF EXISTS
+            `{dwh_db}`.`dim_ptk`;
+            """,
+
+            f"""
+            CREATE TABLE `{dwh_db}`.`dim_ptk` AS
+
+            SELECT
+                id_ptk,
+                nik,
+                nuptk,
+                nama_ptk,
+                jenis_kelamin,
+                id_sekolah,
+                jenis_ptk,
+                status_kepegawaian,
+                pendidikan_terakhir,
+                bidang_studi,
+                jabatan,
+                tahun_masuk,
+                status_ptk
+            FROM `{staging_db}`.`stg_ptk`;
+            """,
+
+            # =================================================
+            # FACT PENDIDIKAN
+            # =================================================
+
+            f"""
+            DROP TABLE IF EXISTS
+            `{dwh_db}`.`fact_pendidikan`;
+            """,
+
+            f"""
+            CREATE TABLE `{dwh_db}`.`fact_pendidikan` AS
+
+            SELECT
+                id_pendidikan,
+                id_sekolah,
+                id_waktu,
+                jumlah_siswa,
+                jumlah_guru,
+                jumlah_rombel,
+                jumlah_mapel,
+                jumlah_jam_pembelajaran,
+                rata_rata_nilai,
+                persentase_kelulusan,
+                jumlah_lulus,
+                jumlah_mengulang,
+                jumlah_putus_sekolah
+            FROM `{staging_db}`.`stg_pendidikan`;
+            """,
+
+        ]
+
+        execute_sql(transformations)
+
+        logging.info(
+            "Load Data Warehouse Pendidikan selesai."
+        )
     t1 = extract_to_raw()
     t2 = transform_staging()
+    t3 = load_to_dwh()
 
-    t1 >> t2
+    t1 >> t2 >> t3
+
+
 
     return t2
