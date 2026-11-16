@@ -128,11 +128,7 @@ def create_dukcapil_tasks(
                     f"""
                     CREATE TABLE `{raw_db}`.`{raw_table}`
                     (
-<<<<<<< HEAD
                         id BIGINT NOT NULL AUTO_INCREMENT PRIMARY KEY,
-=======
-                        `_raw_id` BIGINT AUTO_INCREMENT PRIMARY KEY,
->>>>>>> origin/etl/disnaker
                         {col_defs},
                         `sumber_database` VARCHAR(100),
                         `waktu_ekstraksi` DATETIME

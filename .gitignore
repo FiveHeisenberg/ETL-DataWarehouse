@@ -5,8 +5,7 @@ airflow_settings.yaml
 __pycache__/
 astro
 .venv
-.astro/standalone/
-.astro/worktrees/
+.astro/
 airflow-webserver.pid
 webserver_config.py
 airflow.cfg
@@ -29,3 +28,21 @@ disnaker-api/
 tb_penduduk (1).pdf
 db_disnaker/
 context/
+MEMORY.md
+PANDUAN.md
+
+# Sensitive project documentation
+rekap_kepatuhan_pajak_daerah.txt
+rekap_kepatuhan_pajak_daerah.docx
+
+# Temporary scripts with secrets
+dags/seeder_dwh.py
+
+# Temporary Python/IDE files
+*.pyc
+*.pyo
+.pytest_cache/
+.mypy_cache/
+*.egg-info/
+dist/
+build/

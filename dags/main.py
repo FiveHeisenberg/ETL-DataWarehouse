@@ -54,7 +54,7 @@ PIPELINE_TASKS = [
     {
         "name": "dispenda",
         "create_tasks": create_dispenda_tasks,
-        "api_base_url": "http://192.168.222.154:8000/api",
+        "api_base_url": "http://host.docker.internal:8000/api",
     },
     {
         "name": "pendidikan",
@@ -228,9 +228,9 @@ def etl_dukcapil_to_dwh():
     # ========================================================
     # DATA SOURCE PIPELINES
     #
-    # Setiap source punya api_base_url sendiri.
-    # create_*_tasks() mengembalikan task terakhir dari
-    # pipeline-nya, lalu di-chain secara berurutan.
+    # Setelah t_dwh selesai, pipeline bercabang ke tiap source.
+    # - Dispenda (dict): t_dwh >> t_extract, lalu paralel
+    # - Tim lain (task): t_dwh >> t_extract (return task pertama)
     # ========================================================
 
     shared_kwargs = dict(
@@ -240,8 +240,6 @@ def etl_dukcapil_to_dwh():
         staging_db=STAGING_DB,
         dwh_db=DWH_DB,
     )
-
-    prev_task = t_dwh
 
     for source in PIPELINE_TASKS:
 
@@ -265,10 +263,18 @@ def etl_dukcapil_to_dwh():
             if k in sig_params
         }
 
-        current_task = source["create_tasks"](**source_kwargs)
+        hasil_task = source["create_tasks"](**filtered_kwargs)
 
-        prev_task >> current_task
-        prev_task = current_task
+        if isinstance(hasil_task, dict):
+            t_extract = hasil_task["extract_to_raw"]
+            t_transform = hasil_task["transform_staging"]
+            t_load = hasil_task["load_to_dwh"]
+
+            t_dwh >> t_extract
+            [t_extract, t_dwh] >> t_transform
+            t_transform >> t_load
+        else:
+            t_dwh >> hasil_task
 
 
 etl_dukcapil_to_dwh()
