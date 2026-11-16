@@ -178,7 +178,7 @@ def create_dispenda_tasks(
                     f"""
                     CREATE TABLE `{raw_db}`.`{raw_table}`
                     (
-                        id BIGINT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+                        raw_id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
                         {col_defs},
                         `sumber_database` VARCHAR(100),
                         `waktu_ekstraksi` DATETIME
@@ -310,7 +310,7 @@ def create_dispenda_tasks(
             cursor.execute(f"""
             CREATE TABLE `{staging_db}`.`stg_dispenda_wajib_pajak`
             (
-                id              BIGINT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+                stg_id          BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
                 nik_wp          VARCHAR(20),
                 nama_lengkap    VARCHAR(200),
                 jenis_kelamin   CHAR(1),
@@ -421,7 +421,7 @@ def create_dispenda_tasks(
             cursor.execute(f"""
             CREATE TABLE `{staging_db}`.`stg_dispenda_kategori_pajak`
             (
-                id                BIGINT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+                stg_id                BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
                 id_kategori       VARCHAR(10),
                 nama_pajak        VARCHAR(100),
                 tarif_persentase  DECIMAL(5,2),
@@ -485,7 +485,7 @@ def create_dispenda_tasks(
             cursor.execute(f"""
             CREATE TABLE `{staging_db}`.`stg_dispenda_objek_pajak`
             (
-                id                    BIGINT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+                stg_id                    BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
                 id_objek              VARCHAR(20),
                 nik_wp                VARCHAR(20),
                 id_kategori           VARCHAR(10),
@@ -579,7 +579,7 @@ def create_dispenda_tasks(
             cursor.execute(f"""
             CREATE TABLE `{staging_db}`.`stg_dispenda_tagihan`
             (
-                id                  BIGINT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+                stg_id                  BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
                 id_tagihan          VARCHAR(20),
                 id_objek            VARCHAR(20),
                 tahun_pajak         VARCHAR(4),
@@ -673,7 +673,7 @@ def create_dispenda_tasks(
             cursor.execute(f"""
             CREATE TABLE `{staging_db}`.`stg_dispenda_pembayaran`
             (
-                id                      BIGINT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+                stg_id                      BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
                 id_pembayaran           VARCHAR(20),
                 id_tagihan              VARCHAR(20),
                 tanggal_bayar           DATE,
@@ -758,7 +758,7 @@ def create_dispenda_tasks(
             cursor.execute(f"""
             CREATE TABLE `{staging_db}`.`stg_dispenda_metode_bayar`
             (
-                id                  BIGINT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+                stg_id                  BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
                 metode_bayar        VARCHAR(255),
                 sumber_database     VARCHAR(100),
                 waktu_ekstraksi     DATETIME
@@ -860,7 +860,7 @@ def create_dispenda_tasks(
             CREATE TABLE IF NOT EXISTS
             `{dwh_db}`.`dim_dispenda_waktu`
             (
-                waktu_key INT PRIMARY KEY,
+                waktu_key INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
 
                 tanggal DATE NOT NULL,
 

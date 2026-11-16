@@ -591,6 +591,58 @@ INSERT INTO `tutupan_lahan_rth` VALUES
 ('RTH-0043', '08042', 'Perkebunan', 'tidak valid', 'Citra Satelit Sentinel-2', '2026-01-01'),
 ('RTH-0044', '01062', 'Hutan Produksi', '  418.90  ', 'Citra Satelit Landsat 8', '01-01-2026');
 
+-- =========================================================
+-- Foreign Key Constraints (diterapkan setelah data load untuk menghindari error pada data kotor)
+-- =========================================================
+
+-- master_fasilitas_sampah -> master_wilayah
+ALTER TABLE `master_fasilitas_sampah`
+ADD CONSTRAINT `fk_fasilitas_wilayah`
+FOREIGN KEY (`id_desa`) REFERENCES `master_wilayah` (`id_desa`)
+ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- master_perusahaan -> master_wilayah
+ALTER TABLE `master_perusahaan`
+ADD CONSTRAINT `fk_perusahaan_wilayah`
+FOREIGN KEY (`id_desa`) REFERENCES `master_wilayah` (`id_desa`)
+ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- master_stasiun_pantau -> master_wilayah
+ALTER TABLE `master_stasiun_pantau`
+ADD CONSTRAINT `fk_stasiun_wilayah`
+FOREIGN KEY (`id_desa`) REFERENCES `master_wilayah` (`id_desa`)
+ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- izin_lingkungan -> master_perusahaan
+ALTER TABLE `izin_lingkungan`
+ADD CONSTRAINT `fk_izin_perusahaan`
+FOREIGN KEY (`id_perusahaan`) REFERENCES `master_perusahaan` (`id_perusahaan`)
+ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- kualitas_air_sungai -> master_stasiun_pantau
+ALTER TABLE `kualitas_air_sungai`
+ADD CONSTRAINT `fk_kualitas_air_stasiun`
+FOREIGN KEY (`id_stasiun`) REFERENCES `master_stasiun_pantau` (`id_stasiun`)
+ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- kualitas_udara -> master_stasiun_pantau
+ALTER TABLE `kualitas_udara`
+ADD CONSTRAINT `fk_kualitas_udara_stasiun`
+FOREIGN KEY (`id_stasiun`) REFERENCES `master_stasiun_pantau` (`id_stasiun`)
+ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- timbulan_sampah -> master_fasilitas_sampah
+ALTER TABLE `timbulan_sampah`
+ADD CONSTRAINT `fk_timbulan_fasilitas`
+FOREIGN KEY (`id_fasilitas`) REFERENCES `master_fasilitas_sampah` (`id_fasilitas`)
+ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- tutupan_lahan_rth -> master_wilayah
+ALTER TABLE `tutupan_lahan_rth`
+ADD CONSTRAINT `fk_rth_wilayah`
+FOREIGN KEY (`id_desa`) REFERENCES `master_wilayah` (`id_desa`)
+ON DELETE SET NULL ON UPDATE CASCADE;
+
 COMMIT;
 
 /*!40101 SET CHARACTER_SET_CLIENT=@OLD_CHARACTER_SET_CLIENT */;
