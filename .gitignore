@@ -18,9 +18,14 @@ tb_penduduk (1).pdf
 AGENTS.md
 db_disnaker/
 
-**/.astro/dbt_metadata.json
+**/.astro/dbt_metadata.json``
 **/.astro/manifest.slim.json
 
 # AI Agent Configuration (Local Only)
 AGENTS.md
 opencode.json
+
+disnaker-api/
+tb_penduduk (1).pdf
+db_disnaker/
+context/

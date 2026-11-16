@@ -35,6 +35,8 @@ from pendidikan import create_pendidikan_tasks
 from dinsos import create_dinsos_tasks
 from kesehatan import create_kesehatan_tasks
 from pangan import create_pangan_tasks
+from infrastruktur import create_infrastruktur_tasks
+
 
 PIPELINE_TASKS = [
     {
@@ -71,7 +73,12 @@ PIPELINE_TASKS = [
         'name': 'pangan',
         "create_tasks": create_pangan_tasks,
         'api_base_url': "http://192.168.222.152:8012/api/pangan",
-    }
+    },
+    {
+        "name": "infrastruktur",
+        "create_tasks": create_infrastruktur_tasks,
+        "api_base_url": "http://192.168.222.57:8000/api",
+    },
         
     # Contoh source baru dengan IP berbeda:
     # {
