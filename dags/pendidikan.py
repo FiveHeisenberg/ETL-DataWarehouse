@@ -7,25 +7,14 @@ import requests
 
 from airflow.sdk import task
 
-
-# ============================================================
-# KONFIGURASI DOMAIN PENDIDIKAN
-# ============================================================
-# Sesuai skema db_pendidikan:
-# tb_waktu, tb_sekolah, tb_ptk, tb_siswa, tb_sarana, tb_pendidikan
 SOURCE_ENDPOINTS = {
-    "tb_waktu":      "/extraction/waktu",
-    "tb_sekolah":    "/extraction/sekolah",
-    "tb_ptk":        "/extraction/ptk",
-    "tb_siswa":      "/extraction/siswa",
-    "tb_sarana":     "/extraction/sarana",
+    "tb_waktu": "/extraction/waktu",
+    "tb_sekolah": "/extraction/sekolah",
+    "tb_ptk": "/extraction/ptk",
+    "tb_siswa": "/extraction/siswa",
+    "tb_sarana": "/extraction/sarana",
     "tb_pendidikan": "/extraction/pendidikan",
 }
-
-
-# ============================================================
-# PIPELINE PENDIDIKAN
-# ============================================================
 
 def create_pendidikan_tasks(
     execute_sql,
@@ -35,19 +24,8 @@ def create_pendidikan_tasks(
     dwh_db,
     api_base_url,
 ):
-    """
-    execute_sql      : helper untuk jalanin list query SQL (didefinisikan di main.py)
-    get_mysql_hook   : helper untuk koneksi ke server raw_data & staging_area
-    raw_db           : nama database raw_data
-    staging_db       : nama database staging_area
-    dwh_db           : nama database dwh
-    api_base_url     : base URL API sumber pendidikan, mis. "http://...:5000/api"
-    """
 
-    # ========================================================
     # TASK: EXTRACT API -> RAW_DATA
-    # ========================================================
-
     @task
     def extract_to_raw():
 
@@ -193,10 +171,7 @@ def create_pendidikan_tasks(
             cursor.close()
             conn.close()
 
-    # ========================================================
     # TASK: TRANSFORM RAW_DATA -> STAGING_AREA
-    # ========================================================
-
     @task
     def transform_staging():
 
@@ -210,10 +185,7 @@ def create_pendidikan_tasks(
 
         transformations = [
 
-            # =================================================
-            # WAKTU (referensi, harus bersih duluan)
-            # =================================================
-
+            # WAKTU
             f"""
             DROP TABLE IF EXISTS
             `{staging_db}`.`stg_waktu`;
@@ -263,10 +235,7 @@ def create_pendidikan_tasks(
                 AND tahun IS NOT NULL;
             """,
 
-            # =================================================
-            # SEKOLAH (referensi, harus bersih duluan)
-            # =================================================
-
+            # SEKOLAH
             f"""
             DROP TABLE IF EXISTS
             `{staging_db}`.`stg_sekolah`;
@@ -330,10 +299,7 @@ def create_pendidikan_tasks(
                 AND TRIM(nama_sekolah) <> '';
             """,
 
-            # =================================================
-            # PTK (Pendidik & Tenaga Kependidikan)
-            # =================================================
-
+            # PTK
             f"""
             DROP TABLE IF EXISTS
             `{staging_db}`.`stg_ptk`;
@@ -389,24 +355,14 @@ def create_pendidikan_tasks(
             FROM `{raw_db}`.`raw_tb_ptk`
 
             WHERE
-                -- NIK wajib 16 digit
                 CHAR_LENGTH(REGEXP_REPLACE(nik, '[^0-9]', '')) = 16
-
-                -- Nama tidak boleh kosong
                 AND nama_ptk IS NOT NULL
                 AND TRIM(nama_ptk) <> ''
-
-                -- Jenis kelamin harus valid
                 AND jenis_kelamin IN ('L', 'P')
-
                 AND id_sekolah IS NOT NULL;
             """,
 
-            # =================================================
             # SISWA
-            # Data Cleansing, Standardization, Validation
-            # =================================================
-
             f"""
             DROP TABLE IF EXISTS
             `{staging_db}`.`stg_siswa`;
@@ -465,26 +421,15 @@ def create_pendidikan_tasks(
             FROM `{raw_db}`.`raw_tb_siswa`
 
             WHERE
-                -- NISN wajib 10 digit
                 CHAR_LENGTH(REGEXP_REPLACE(nisn, '[^0-9]', '')) = 10
-
-                -- NIK wajib 16 digit
                 AND CHAR_LENGTH(REGEXP_REPLACE(nik, '[^0-9]', '')) = 16
-
-                -- Nama tidak boleh kosong
                 AND nama_siswa IS NOT NULL
                 AND TRIM(nama_siswa) <> ''
-
-                -- Jenis kelamin harus valid
                 AND jenis_kelamin IN ('L', 'P')
-
                 AND id_sekolah IS NOT NULL;
             """,
 
-            # =================================================
             # SARANA
-            # =================================================
-
             f"""
             DROP TABLE IF EXISTS
             `{staging_db}`.`stg_sarana`;
@@ -526,10 +471,7 @@ def create_pendidikan_tasks(
                 AND id_sekolah IS NOT NULL;
             """,
 
-            # =================================================
-            # PENDIDIKAN (metrik agregat per sekolah per periode)
-            # =================================================
-
+            # PENDIDIKAN
             f"""
             DROP TABLE IF EXISTS
             `{staging_db}`.`stg_pendidikan`;
@@ -584,10 +526,7 @@ def create_pendidikan_tasks(
 
         logging.info("Transform staging pendidikan selesai.")
 
-    # ========================================================
-    # WIRING (sampai staging_area dulu)
-    # ========================================================
-
+    # WIRING
     t1 = extract_to_raw()
     t2 = transform_staging()
 

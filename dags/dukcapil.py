@@ -7,28 +7,18 @@ import requests
 
 from airflow.sdk import task
 
-
-# ============================================================
-# KONFIGURASI DOMAIN PENDUDUK
-# ============================================================
-
 SOURCE_ENDPOINTS = {
-    "tb_agama":              "/agama",
-    "tb_alamat":             "/alamat",
-    "tb_desa":               "/desa",
-    "tb_kabupaten_kota":     "/kabupaten-kota",
-    "tb_kartu_keluarga":     "/kartu-keluarga",
-    "tb_kecamatan":          "/kecamatan",
-    "tb_penduduk":           "/penduduk",
-    "tb_provinsi":           "/provinsi",
-    "tb_status_penduduk":    "/status-penduduk",
-    "tb_status_perkawinan":  "/status-perkawinan",
+    "tb_agama": "/agama",
+    "tb_alamat": "/alamat",
+    "tb_desa": "/desa",
+    "tb_kabupaten_kota": "/kabupaten-kota",
+    "tb_kartu_keluarga": "/kartu-keluarga",
+    "tb_kecamatan": "/kecamatan",
+    "tb_penduduk": "/penduduk",
+    "tb_provinsi": "/provinsi",
+    "tb_status_penduduk": "/status-penduduk",
+    "tb_status_perkawinan": "/status-perkawinan",
 }
-
-
-# ============================================================
-# PIPELINE PENDUDUK
-# ============================================================
 
 def create_dukcapil_tasks(
     execute_sql,
@@ -39,10 +29,7 @@ def create_dukcapil_tasks(
     api_base_url,
 ):
 
-    # ========================================================
     # TASK: EXTRACT API -> RAW_DATA
-    # ========================================================
-
     @task
     def extract_to_raw():
 
@@ -189,16 +176,11 @@ def create_dukcapil_tasks(
             cursor.close()
             conn.close()
 
-    # ========================================================
     # TASK: TRANSFORM RAW_DATA -> STAGING_AREA
-    # ========================================================
-
     @task
     def transform_staging():
 
-        logging.info(
-            "Memulai proses transform..."
-        )
+        logging.info("Memulai proses transform...")
 
         align_collation = f"""
         ALTER DATABASE `{staging_db}`
@@ -208,10 +190,7 @@ def create_dukcapil_tasks(
 
         transformations = [
 
-            # =================================================
             # AGAMA
-            # =================================================
-
             f"""
             DROP TABLE IF EXISTS
             `{staging_db}`.`stg_agama`;
@@ -237,10 +216,7 @@ def create_dukcapil_tasks(
                 AND TRIM(nama_agama) <> '';
             """,
 
-            # =================================================
             # PROVINSI
-            # =================================================
-
             f"""
             DROP TABLE IF EXISTS
             `{staging_db}`.`stg_provinsi`;
@@ -271,10 +247,7 @@ def create_dukcapil_tasks(
                 AND TRIM(nama_provinsi) <> '';
             """,
 
-            # =================================================
             # KABUPATEN KOTA
-            # =================================================
-
             f"""
             DROP TABLE IF EXISTS
             `{staging_db}`.`stg_kabupaten_kota`;
@@ -309,10 +282,7 @@ def create_dukcapil_tasks(
                 AND id_provinsi IS NOT NULL;
             """,
 
-            # =================================================
             # KECAMATAN
-            # =================================================
-
             f"""
             DROP TABLE IF EXISTS
             `{staging_db}`.`stg_kecamatan`;
@@ -347,10 +317,7 @@ def create_dukcapil_tasks(
                 AND id_kabupaten_kota IS NOT NULL;
             """,
 
-            # =================================================
             # DESA
-            # =================================================
-
             f"""
             DROP TABLE IF EXISTS
             `{staging_db}`.`stg_desa`;
@@ -385,10 +352,7 @@ def create_dukcapil_tasks(
                 AND id_kecamatan IS NOT NULL;
             """,
 
-            # =================================================
             # ALAMAT
-            # =================================================
-
             f"""
             DROP TABLE IF EXISTS
             `{staging_db}`.`stg_alamat`;
@@ -428,10 +392,7 @@ def create_dukcapil_tasks(
                 AND id_desa IS NOT NULL;
             """,
 
-            # =================================================
             # STATUS PERKAWINAN
-            # =================================================
-
             f"""
             DROP TABLE IF EXISTS
             `{staging_db}`.`stg_status_perkawinan`;
@@ -462,10 +423,7 @@ def create_dukcapil_tasks(
                 id_status_perkawinan IS NOT NULL;
             """,
 
-            # =================================================
             # STATUS PENDUDUK
-            # =================================================
-
             f"""
             DROP TABLE IF EXISTS
             `{staging_db}`.`stg_status_penduduk`;
@@ -496,10 +454,7 @@ def create_dukcapil_tasks(
                 id_status_penduduk IS NOT NULL;
             """,
 
-            # =================================================
             # KARTU KELUARGA
-            # =================================================
-
             f"""
             DROP TABLE IF EXISTS
             `{staging_db}`.`stg_kartu_keluarga`;
@@ -555,13 +510,10 @@ def create_dukcapil_tasks(
                 ) = 16;
             """,
 
-            # =================================================
             # PENDUDUK
             # Data Cleansing
             # Standardization
             # Validation
-            # =================================================
-
             f"""
             DROP TABLE IF EXISTS
             `{staging_db}`.`stg_penduduk`;
@@ -661,24 +613,15 @@ def create_dukcapil_tasks(
             """,
         ]
 
-        execute_sql(
-            [align_collation] + transformations
-        )
+        execute_sql([align_collation] + transformations)
 
-        logging.info(
-            "Transform staging selesai."
-        )
+        logging.info("Transform staging selesai.")
 
-    # ========================================================
     # TASK: LOAD -> DATA WAREHOUSE
-    # ========================================================
-
     @task
     def load_to_dwh():
 
-        logging.info(
-            "Membuat dimension dan fact..."
-        )
+        logging.info("Membuat dimension dan fact...")
 
         align_collation = f"""
         ALTER DATABASE `{dwh_db}`
@@ -731,10 +674,7 @@ def create_dukcapil_tasks(
 
         create_tables = [
 
-            # =================================================
             # DIM WAKTU
-            # =================================================
-
             f"""
             CREATE TABLE IF NOT EXISTS
             `{dwh_db}`.`dim_waktu`
@@ -753,10 +693,7 @@ def create_dukcapil_tasks(
             );
             """,
 
-            # =================================================
             # DIM AGAMA
-            # =================================================
-
             f"""
             CREATE TABLE IF NOT EXISTS
             `{dwh_db}`.`dim_agama`
@@ -778,10 +715,7 @@ def create_dukcapil_tasks(
             );
             """,
 
-            # =================================================
             # DIM STATUS PERKAWINAN
-            # =================================================
-
             f"""
             CREATE TABLE IF NOT EXISTS
             `{dwh_db}`.`dim_status_perkawinan`
@@ -806,10 +740,7 @@ def create_dukcapil_tasks(
             );
             """,
 
-            # =================================================
             # DIM STATUS PENDUDUK
-            # =================================================
-
             f"""
             CREATE TABLE IF NOT EXISTS
             `{dwh_db}`.`dim_status_penduduk`
@@ -834,10 +765,7 @@ def create_dukcapil_tasks(
             );
             """,
 
-            # =================================================
             # DIM KARTU KELUARGA
-            # =================================================
-
             f"""
             CREATE TABLE IF NOT EXISTS
             `{dwh_db}`.`dim_kartu_keluarga`
@@ -863,14 +791,8 @@ def create_dukcapil_tasks(
             );
             """,
 
-            # =================================================
             # DIM WILAYAH
-            #
-            # Dibuat denormalisasi:
-            # Provinsi -> Kabupaten -> Kecamatan -> Desa
-            # -> Alamat
-            # =================================================
-
+            # Denormalisasi: Provinsi -> Kabupaten -> Kecamatan -> Desa -> Alamat
             f"""
             CREATE TABLE IF NOT EXISTS
             `{dwh_db}`.`dim_wilayah`
@@ -905,10 +827,7 @@ def create_dukcapil_tasks(
             );
             """,
 
-            # =================================================
             # DIM PENDUDUK
-            # =================================================
-
             f"""
             CREATE TABLE IF NOT EXISTS
             `{dwh_db}`.`dim_penduduk`
@@ -938,13 +857,8 @@ def create_dukcapil_tasks(
             );
             """,
 
-            # =================================================
             # FACT PENDUDUK
-            #
-            # Grain:
-            # 1 penduduk = 1 record per hari snapshot
-            # =================================================
-
+            # Grain: 1 penduduk = 1 record per hari snapshot
             f"""
             CREATE TABLE IF NOT EXISTS
             `{dwh_db}`.`fact_penduduk`
@@ -997,16 +911,10 @@ def create_dukcapil_tasks(
 
         execute_sql(create_tables)
 
-        # ====================================================
         # LOAD DIMENSION
-        # ====================================================
-
         load_dimensions = [
 
-            # -----------------------------------------------
             # DIM WAKTU
-            # -----------------------------------------------
-
             f"""
             INSERT INTO `{dwh_db}`.`dim_waktu`
             (
@@ -1059,10 +967,7 @@ def create_dukcapil_tasks(
                 waktu_load = VALUES(waktu_load);
             """,
 
-            # -----------------------------------------------
             # DIM AGAMA
-            # -----------------------------------------------
-
             f"""
             INSERT INTO `{dwh_db}`.`dim_agama`
             (
@@ -1082,20 +987,12 @@ def create_dukcapil_tasks(
 
             ON DUPLICATE KEY UPDATE
 
-                nama_agama =
-                    VALUES(nama_agama),
-
-                sumber_database =
-                    VALUES(sumber_database),
-
-                waktu_load =
-                    VALUES(waktu_load);
+                nama_agama = VALUES(nama_agama),
+                sumber_database = VALUES(sumber_database),
+                waktu_load = VALUES(waktu_load);
             """,
 
-            # -----------------------------------------------
             # DIM STATUS PERKAWINAN
-            # -----------------------------------------------
-
             f"""
             INSERT INTO
             `{dwh_db}`.`dim_status_perkawinan`
@@ -1117,20 +1014,12 @@ def create_dukcapil_tasks(
 
             ON DUPLICATE KEY UPDATE
 
-                status_perkawinan =
-                    VALUES(status_perkawinan),
-
-                sumber_database =
-                    VALUES(sumber_database),
-
-                waktu_load =
-                    VALUES(waktu_load);
+                status_perkawinan = VALUES(status_perkawinan),
+                sumber_database = VALUES(sumber_database),
+                waktu_load = VALUES(waktu_load);
             """,
 
-            # -----------------------------------------------
             # DIM STATUS PENDUDUK
-            # -----------------------------------------------
-
             f"""
             INSERT INTO
             `{dwh_db}`.`dim_status_penduduk`
@@ -1152,20 +1041,12 @@ def create_dukcapil_tasks(
 
             ON DUPLICATE KEY UPDATE
 
-                status_penduduk =
-                    VALUES(status_penduduk),
-
-                sumber_database =
-                    VALUES(sumber_database),
-
-                waktu_load =
-                    VALUES(waktu_load);
+                status_penduduk = VALUES(status_penduduk),
+                sumber_database = VALUES(sumber_database),
+                waktu_load = VALUES(waktu_load);
             """,
 
-            # -----------------------------------------------
             # DIM KK
-            # -----------------------------------------------
-
             f"""
             INSERT INTO
             `{dwh_db}`.`dim_kartu_keluarga`
@@ -1191,26 +1072,14 @@ def create_dukcapil_tasks(
 
             ON DUPLICATE KEY UPDATE
 
-                no_kk =
-                    VALUES(no_kk),
-
-                nik_kepala_keluarga =
-                    VALUES(nik_kepala_keluarga),
-
-                tanggal_terbit =
-                    VALUES(tanggal_terbit),
-
-                sumber_database =
-                    VALUES(sumber_database),
-
-                waktu_load =
-                    VALUES(waktu_load);
+                no_kk = VALUES(no_kk),
+                nik_kepala_keluarga = VALUES(nik_kepala_keluarga),
+                tanggal_terbit = VALUES(tanggal_terbit),
+                sumber_database = VALUES(sumber_database),
+                waktu_load = VALUES(waktu_load);
             """,
 
-            # -----------------------------------------------
             # DIM WILAYAH
-            # -----------------------------------------------
-
             f"""
             INSERT INTO `{dwh_db}`.`dim_wilayah`
             (
@@ -1282,32 +1151,16 @@ def create_dukcapil_tasks(
 
             ON DUPLICATE KEY UPDATE
 
-                jalan =
-                    VALUES(jalan),
-
-                kode_pos =
-                    VALUES(kode_pos),
-
-                nama_desa =
-                    VALUES(nama_desa),
-
-                nama_kecamatan =
-                    VALUES(nama_kecamatan),
-
-                nama_kabupaten_kota =
-                    VALUES(nama_kabupaten_kota),
-
-                nama_provinsi =
-                    VALUES(nama_provinsi),
-
-                waktu_load =
-                    VALUES(waktu_load);
+                jalan = VALUES(jalan),
+                kode_pos = VALUES(kode_pos),
+                nama_desa = VALUES(nama_desa),
+                nama_kecamatan = VALUES(nama_kecamatan),
+                nama_kabupaten_kota = VALUES(nama_kabupaten_kota),
+                nama_provinsi = VALUES(nama_provinsi),
+                waktu_load = VALUES(waktu_load);
             """,
 
-            # -----------------------------------------------
             # DIM PENDUDUK
-            # -----------------------------------------------
-
             f"""
             INSERT INTO `{dwh_db}`.`dim_penduduk`
             (
@@ -1336,35 +1189,19 @@ def create_dukcapil_tasks(
 
             ON DUPLICATE KEY UPDATE
 
-                nama_lengkap =
-                    VALUES(nama_lengkap),
-
-                tempat_lahir =
-                    VALUES(tempat_lahir),
-
-                tanggal_lahir =
-                    VALUES(tanggal_lahir),
-
-                jenis_kelamin =
-                    VALUES(jenis_kelamin),
-
-                kewarganegaraan =
-                    VALUES(kewarganegaraan),
-
-                sumber_database =
-                    VALUES(sumber_database),
-
-                waktu_load =
-                    VALUES(waktu_load);
+                nama_lengkap = VALUES(nama_lengkap),
+                tempat_lahir = VALUES(tempat_lahir),
+                tanggal_lahir = VALUES(tanggal_lahir),
+                jenis_kelamin = VALUES(jenis_kelamin),
+                kewarganegaraan = VALUES(kewarganegaraan),
+                sumber_database = VALUES(sumber_database),
+                waktu_load = VALUES(waktu_load);
             """,
         ]
 
         execute_sql(load_dimensions)
 
-        # ====================================================
         # LOAD FACT
-        # ====================================================
-
         load_fact = f"""
         INSERT INTO `{dwh_db}`.`fact_penduduk`
         (
@@ -1453,38 +1290,20 @@ def create_dukcapil_tasks(
 
         ON DUPLICATE KEY UPDATE
 
-            wilayah_key =
-                VALUES(wilayah_key),
-
-            agama_key =
-                VALUES(agama_key),
-
-            status_perkawinan_key =
-                VALUES(status_perkawinan_key),
-
-            status_penduduk_key =
-                VALUES(status_penduduk_key),
-
-            kartu_keluarga_key =
-                VALUES(kartu_keluarga_key),
-
-            umur =
-                VALUES(umur),
-
-            waktu_load =
-                VALUES(waktu_load);
+            wilayah_key = VALUES(wilayah_key),
+            agama_key = VALUES(agama_key),
+            status_perkawinan_key = VALUES(status_perkawinan_key),
+            status_penduduk_key = VALUES(status_penduduk_key),
+            kartu_keluarga_key = VALUES(kartu_keluarga_key),
+            umur = VALUES(umur),
+            waktu_load = VALUES(waktu_load);
         """
 
         execute_sql([load_fact])
 
-        logging.info(
-            "Load ke Data Warehouse selesai."
-        )
+        logging.info("Load ke Data Warehouse selesai.")
 
-    # ========================================================
     # WIRING
-    # ========================================================
-
     t1 = extract_to_raw()
     t2 = transform_staging()
     t3 = load_to_dwh()

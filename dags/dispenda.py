@@ -8,37 +8,28 @@ import requests
 
 from airflow.sdk import task
 
-
-# ============================================================
 # KONFIGURASI DOMAIN PAJAK DAERAH (DISPENDA)
-# ============================================================
-
 SOURCE_NAME = "dispenda"
 SOURCE_DB = "db_dispenda"
 
 SOURCE_ENDPOINTS = {
-    "wajib_pajak":       "/wajib-pajak",
-    "kategori_pajak":    "/kategori-pajak",
-    "objek_pajak":       "/objek-pajak",
-    "tagihan":           "/tagihan",
-    "pembayaran":        "/pembayaran",
-    "metode_bayar":      "/metode-bayar",
+    "wajib_pajak": "/wajib-pajak",
+    "kategori_pajak": "/kategori-pajak",
+    "objek_pajak": "/objek-pajak",
+    "tagihan": "/tagihan",
+    "pembayaran": "/pembayaran",
+    "metode_bayar": "/metode-bayar",
 }
 
 # Mapping dari endpoint ke nama tabel dengan prefix dispenda
 TABLE_NAME_MAP = {
-    "wajib_pajak":       "raw_dispenda_wajib_pajak",
-    "kategori_pajak":    "raw_dispenda_kategori_pajak",
-    "objek_pajak":       "raw_dispenda_objek_pajak",
-    "tagihan":           "raw_dispenda_tagihan",
-    "pembayaran":        "raw_dispenda_pembayaran",
-    "metode_bayar":      "raw_dispenda_metode_bayar",
+    "wajib_pajak": "raw_dispenda_wajib_pajak",
+    "kategori_pajak": "raw_dispenda_kategori_pajak",
+    "objek_pajak": "raw_dispenda_objek_pajak",
+    "tagihan": "raw_dispenda_tagihan",
+    "pembayaran": "raw_dispenda_pembayaran",
+    "metode_bayar": "raw_dispenda_metode_bayar",
 }
-
-
-# ============================================================
-# PIPELINE PAJAK DAERAH (DISPENDA)
-# ============================================================
 
 def create_dispenda_tasks(
     execute_sql,
@@ -49,10 +40,7 @@ def create_dispenda_tasks(
     api_base_url,
 ):
 
-    # ========================================================
     # TASK: EXTRACT API -> RAW_DATA
-    # ========================================================
-
     @task(task_id="extract_to_raw_dispenda")
     def extract_to_raw():
 
@@ -268,10 +256,7 @@ def create_dispenda_tasks(
             cursor.close()
             conn.close()
 
-    # ========================================================
     # TASK: TRANSFORM RAW_DATA -> STAGING_AREA
-    # ========================================================
-
     @task(task_id="transform_staging_dispenda")
     def transform_staging():
 
@@ -281,14 +266,9 @@ def create_dispenda_tasks(
 
         try:
 
-            logging.info(
-                "Memulai proses transform..."
-            )
+            logging.info("Memulai proses transform...")
 
-            # --------------------------------------------
             # ALIGN COLLATION
-            # --------------------------------------------
-
             cursor.execute(f"""
             ALTER DATABASE `{staging_db}`
             CHARACTER SET utf8mb4
@@ -296,10 +276,7 @@ def create_dispenda_tasks(
             """)
             conn.commit()
 
-            # =================================================
             # WAJIB PAJAK
-            # =================================================
-
             logging.info("Transform: stg_dispenda_wajib_pajak ...")
 
             cursor.execute(f"""
@@ -400,14 +377,9 @@ def create_dispenda_tasks(
             """)
             conn.commit()
 
-            logging.info(
-                "Transform: stg_dispenda_wajib_pajak selesai."
-            )
+            logging.info("Transform: stg_dispenda_wajib_pajak selesai.")
 
-            # =================================================
             # KATEGORI PAJAK
-            # =================================================
-
             logging.info("Transform: stg_dispenda_kategori_pajak ...")
 
             cursor.execute(f"""
@@ -464,14 +436,9 @@ def create_dispenda_tasks(
             """)
             conn.commit()
 
-            logging.info(
-                "Transform: stg_dispenda_kategori_pajak selesai."
-            )
+            logging.info("Transform: stg_dispenda_kategori_pajak selesai.")
 
-            # =================================================
             # OBJEK PAJAK
-            # =================================================
-
             logging.info("Transform: stg_dispenda_objek_pajak ...")
 
             cursor.execute(f"""
@@ -558,14 +525,9 @@ def create_dispenda_tasks(
             """)
             conn.commit()
 
-            logging.info(
-                "Transform: stg_dispenda_objek_pajak selesai."
-            )
+            logging.info("Transform: stg_dispenda_objek_pajak selesai.")
 
-            # =================================================
             # TAGIHAN
-            # =================================================
-
             logging.info("Transform: stg_dispenda_tagihan ...")
 
             cursor.execute(f"""
@@ -652,14 +614,9 @@ def create_dispenda_tasks(
             """)
             conn.commit()
 
-            logging.info(
-                "Transform: stg_dispenda_tagihan selesai."
-            )
+            logging.info("Transform: stg_dispenda_tagihan selesai.")
 
-            # =================================================
             # PEMBAYARAN
-            # =================================================
-
             logging.info("Transform: stg_dispenda_pembayaran ...")
 
             cursor.execute(f"""
@@ -767,13 +724,9 @@ def create_dispenda_tasks(
             
             conn.commit()
 
-            logging.info(
-                "Transform: stg_dispenda_metode_bayar selesai."
-            )
+            logging.info("Transform: stg_dispenda_metode_bayar selesai.")
 
-            logging.info(
-                "Transform staging selesai."
-            )
+            logging.info("Transform staging selesai.")
 
         except Exception as e:
             conn.rollback()
@@ -788,16 +741,11 @@ def create_dispenda_tasks(
             cursor.close()
             conn.close()
 
-    # ========================================================
     # TASK: LOAD -> DATA WAREHOUSE
-    # ========================================================
-
     @task(task_id="load_to_dwh_dispenda")
     def load_to_dwh():
 
-        logging.info(
-            "Membuat dimension dan fact..."
-        )
+        logging.info("Membuat dimension dan fact...")
 
         align_collation = f"""
         ALTER DATABASE `{dwh_db}`
@@ -849,10 +797,7 @@ def create_dispenda_tasks(
 
         create_tables = [
 
-            # =================================================
             # DIM WAKTU
-            # =================================================
-
             f"""
             CREATE TABLE IF NOT EXISTS
             `{dwh_db}`.`dim_dispenda_waktu`
@@ -872,10 +817,7 @@ def create_dispenda_tasks(
             );
             """,
 
-            # =================================================
             # DIM WAJIB PAJAK
-            # =================================================
-
             f"""
             CREATE TABLE IF NOT EXISTS
             `{dwh_db}`.`dim_dispenda_wajib_pajak`
@@ -907,10 +849,7 @@ def create_dispenda_tasks(
             );
             """,
 
-            # =================================================
             # DIM KATEGORI PAJAK
-            # =================================================
-
             f"""
             CREATE TABLE IF NOT EXISTS
             `{dwh_db}`.`dim_dispenda_kategori_pajak`
@@ -934,10 +873,7 @@ def create_dispenda_tasks(
             );
             """,
 
-            # =================================================
             # DIM OBJEK PAJAK
-            # =================================================
-
             f"""
             CREATE TABLE IF NOT EXISTS
             `{dwh_db}`.`dim_dispenda_objek_pajak`
@@ -967,10 +903,7 @@ def create_dispenda_tasks(
             );
             """,
 
-            # =================================================
             # DIM METODE BAYAR
-            # =================================================
-
             f"""
             CREATE TABLE IF NOT EXISTS
             `{dwh_db}`.`dim_dispenda_metode_bayar`
@@ -990,13 +923,8 @@ def create_dispenda_tasks(
             );
             """,
 
-            # =================================================
             # FACT TAGIHAN
-            #
-            # Grain:
-            # 1 tagihan per objek pajak per tahun
-            # =================================================
-
+            # Grain: 1 tagihan per objek pajak per tahun
             f"""
             CREATE TABLE IF NOT EXISTS
             `{dwh_db}`.`fact_dispenda_tagihan`
@@ -1041,13 +969,8 @@ def create_dispenda_tasks(
             );
             """,
 
-            # =================================================
             # FACT PEMBAYARAN
-            #
-            # Grain:
-            # 1 pembayaran per transaksi
-            # =================================================
-
+            # Grain: 1 pembayaran per transaksi
             f"""
             CREATE TABLE IF NOT EXISTS
             `{dwh_db}`.`fact_dispenda_pembayaran`
@@ -1092,10 +1015,7 @@ def create_dispenda_tasks(
 
         execute_sql(create_tables)
 
-        # ====================================================
-        # TRUNCATE DIMENSIONS (Clear old data)
-        # ====================================================
-
+        # TRUNCATE DIMENSIONS
         truncate_dims = [
             f"TRUNCATE TABLE `{dwh_db}`.`dim_dispenda_waktu`;",
             f"TRUNCATE TABLE `{dwh_db}`.`dim_dispenda_wajib_pajak`;",
@@ -1108,16 +1028,10 @@ def create_dispenda_tasks(
 
         logging.info("Truncate dimensions selesai")
 
-        # ====================================================
         # LOAD DIMENSION
-        # ====================================================
-
         load_dimensions = [
 
-            # -----------------------------------------------
             # DIM WAKTU
-            # -----------------------------------------------
-
             f"""
             INSERT INTO `{dwh_db}`.`dim_dispenda_waktu`
             (
@@ -1173,10 +1087,7 @@ def create_dispenda_tasks(
                 waktu_load = VALUES(waktu_load);
             """,
 
-            # -----------------------------------------------
             # DIM WAJIB PAJAK
-            # -----------------------------------------------
-
             f"""
             INSERT INTO `{dwh_db}`.`dim_dispenda_wajib_pajak`
             (
@@ -1206,35 +1117,17 @@ def create_dispenda_tasks(
 
             ON DUPLICATE KEY UPDATE
 
-                nama_lengkap =
-                    VALUES(nama_lengkap),
-
-                jenis_kelamin =
-                    VALUES(jenis_kelamin),
-
-                alamat =
-                    VALUES(alamat),
-
-                id_kabupaten_kota =
-                    VALUES(id_kabupaten_kota),
-
-                npwpd =
-                    VALUES(npwpd),
-
-                tanggal_daftar =
-                    VALUES(tanggal_daftar),
-
-                sumber_database =
-                    VALUES(sumber_database),
-
-                waktu_load =
-                    VALUES(waktu_load);
+                nama_lengkap = VALUES(nama_lengkap),
+                jenis_kelamin = VALUES(jenis_kelamin),
+                alamat = VALUES(alamat),
+                id_kabupaten_kota = VALUES(id_kabupaten_kota),
+                npwpd = VALUES(npwpd),
+                tanggal_daftar = VALUES(tanggal_daftar),
+                sumber_database = VALUES(sumber_database),
+                waktu_load = VALUES(waktu_load);
             """,
 
-            # -----------------------------------------------
             # DIM KATEGORI PAJAK
-            # -----------------------------------------------
-
             f"""
             INSERT INTO `{dwh_db}`.`dim_dispenda_kategori_pajak`
             (
@@ -1256,23 +1149,13 @@ def create_dispenda_tasks(
 
             ON DUPLICATE KEY UPDATE
 
-                nama_pajak =
-                    VALUES(nama_pajak),
-
-                tarif_persentase =
-                    VALUES(tarif_persentase),
-
-                sumber_database =
-                    VALUES(sumber_database),
-
-                waktu_load =
-                    VALUES(waktu_load);
+                nama_pajak = VALUES(nama_pajak),
+                tarif_persentase = VALUES(tarif_persentase),
+                sumber_database = VALUES(sumber_database),
+                waktu_load = VALUES(waktu_load);
             """,
 
-            # -----------------------------------------------
             # DIM OBJEK PAJAK
-            # -----------------------------------------------
-
             f"""
             INSERT INTO `{dwh_db}`.`dim_dispenda_objek_pajak`
             (
@@ -1300,32 +1183,16 @@ def create_dispenda_tasks(
 
             ON DUPLICATE KEY UPDATE
 
-                nik_wp =
-                    VALUES(nik_wp),
-
-                id_kategori =
-                    VALUES(id_kategori),
-
-                nomor_identitas_aset =
-                    VALUES(nomor_identitas_aset),
-
-                rincian_objek =
-                    VALUES(rincian_objek),
-
-                nilai_aset =
-                    VALUES(nilai_aset),
-
-                sumber_database =
-                    VALUES(sumber_database),
-
-                waktu_load =
-                    VALUES(waktu_load);
+                nik_wp = VALUES(nik_wp),
+                id_kategori = VALUES(id_kategori),
+                nomor_identitas_aset = VALUES(nomor_identitas_aset),
+                rincian_objek = VALUES(rincian_objek),
+                nilai_aset = VALUES(nilai_aset),
+                sumber_database = VALUES(sumber_database),
+                waktu_load = VALUES(waktu_load);
             """,
 
-            # -----------------------------------------------
             # DIM METODE BAYAR
-            # -----------------------------------------------
-
             f"""
             INSERT INTO `{dwh_db}`.`dim_dispenda_metode_bayar`
             (
@@ -1350,16 +1217,10 @@ def create_dispenda_tasks(
 
         execute_sql(load_dimensions)
 
-        # ====================================================
         # LOAD FACT
-        # ====================================================
-
         load_facts = [
 
-            # -----------------------------------------------
             # FACT TAGIHAN
-            # -----------------------------------------------
-
             f"""
             INSERT INTO `{dwh_db}`.`fact_dispenda_tagihan`
             (
@@ -1426,32 +1287,16 @@ def create_dispenda_tasks(
 
             ON DUPLICATE KEY UPDATE
 
-                wajib_pajak_key =
-                    VALUES(wajib_pajak_key),
-
-                objek_pajak_key =
-                    VALUES(objek_pajak_key),
-
-                kategori_pajak_key =
-                    VALUES(kategori_pajak_key),
-
-                nominal_tagihan =
-                    VALUES(nominal_tagihan),
-
-                tanggal_jatuh_tempo =
-                    VALUES(tanggal_jatuh_tempo),
-
-                status_tagihan =
-                    VALUES(status_tagihan),
-
-                waktu_load =
-                    VALUES(waktu_load);
+                wajib_pajak_key = VALUES(wajib_pajak_key),
+                objek_pajak_key = VALUES(objek_pajak_key),
+                kategori_pajak_key = VALUES(kategori_pajak_key),
+                nominal_tagihan = VALUES(nominal_tagihan),
+                tanggal_jatuh_tempo = VALUES(tanggal_jatuh_tempo),
+                status_tagihan = VALUES(status_tagihan),
+                waktu_load = VALUES(waktu_load);
             """,
 
-            # -----------------------------------------------
             # FACT PEMBAYARAN
-            # -----------------------------------------------
-
             f"""
             INSERT INTO `{dwh_db}`.`fact_dispenda_pembayaran`
             (
@@ -1511,42 +1356,22 @@ def create_dispenda_tasks(
 
             ON DUPLICATE KEY UPDATE
 
-                fact_tagihan_key =
-                    VALUES(fact_tagihan_key),
-
-                metode_bayar_key =
-                    VALUES(metode_bayar_key),
-
-                waktu_bayar_key =
-                    VALUES(waktu_bayar_key),
-
-                tanggal_bayar =
-                    VALUES(tanggal_bayar),
-
-                jumlah_bayar =
-                    VALUES(jumlah_bayar),
-
-                denda_keterlambatan =
-                    VALUES(denda_keterlambatan),
-
-                total_bayar =
-                    VALUES(total_bayar),
-
-                waktu_load =
-                    VALUES(waktu_load);
+                fact_tagihan_key = VALUES(fact_tagihan_key),
+                metode_bayar_key = VALUES(metode_bayar_key),
+                waktu_bayar_key = VALUES(waktu_bayar_key),
+                tanggal_bayar = VALUES(tanggal_bayar),
+                jumlah_bayar = VALUES(jumlah_bayar),
+                denda_keterlambatan = VALUES(denda_keterlambatan),
+                total_bayar = VALUES(total_bayar),
+                waktu_load = VALUES(waktu_load);
             """,
         ]
 
         execute_sql(load_facts)
 
-        logging.info(
-            "Load ke Data Warehouse selesai."
-        )
+        logging.info("Load ke Data Warehouse selesai.")
 
-    # ========================================================
-    # WIRING (PARALEL - DICT)
-    # ========================================================
-
+    # WIRING
     t_extract = extract_to_raw()
     t_transform = transform_staging()
     t_load = load_to_dwh()
