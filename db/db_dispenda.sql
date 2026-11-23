@@ -71,7 +71,9 @@ CREATE TABLE `tb_pembayaran` (
   `tanggal_bayar` date NOT NULL,
   `jumlah_bayar` bigint NOT NULL,
   `denda_keterlambatan` bigint DEFAULT '0',
-  `metode_bayar` varchar(50) NOT NULL
+  `metode_bayar` varchar(50) NOT NULL,
+  PRIMARY KEY (`id_pembayaran`),
+  CONSTRAINT `fk_pembayaran_tagihan` FOREIGN KEY (`id_tagihan`) REFERENCES `tb_tagihan`(`id_tagihan`) ON DELETE CASCADE ON UPDATE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
 -- --------------------------------------------------------
