@@ -85,18 +85,23 @@ def get_mysql_hook():
     return MySqlHook(mysql_conn_id=MYSQL_CONN_ID)
 
 
-def execute_sql(statements):
+def execute_sql(statements, params=None):
     """
     Menjalankan sekumpulan SQL dalam satu koneksi.
+    statements: list of SQL strings
+    params: optional list of parameter tuples for parameterized queries (same length as statements)
     """
     hook = get_mysql_hook()
     conn = hook.get_conn()
     cursor = conn.cursor()
 
     try:
-        for statement in statements:
+        for i, statement in enumerate(statements):
             if statement.strip():
-                cursor.execute(statement)
+                if params and i < len(params) and params[i] is not None:
+                    cursor.execute(statement, params[i])
+                else:
+                    cursor.execute(statement)
 
         conn.commit()
 
