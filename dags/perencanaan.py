@@ -116,18 +116,18 @@ def clean_text(text: str) -> str:
 
 def standardize_kab_kota(code: str, name: str) -> tuple[str, str]:
     code_clean = code.zfill(2) if code and code.isdigit() else (code or "").zfill(2)
-    name_clean = clean_text(name)
-    name_proper = proper_case_preserve_acronyms(name_clean)
-    
-    if code_clean in KOTA_CODES:
-        if not name_proper.startswith("Kota "):
-            name_proper = f"Kota {name_proper}"
+    # Always use the canonical name from mapping based on code
+    if code_clean in KAB_KOTA_MAPPING:
+        name_proper = KAB_KOTA_MAPPING[code_clean]
     else:
-        if not name_proper.startswith("Kabupaten "):
-            name_proper = f"Kabupaten {name_proper}"
-    
-    name_proper = name_proper.replace("Kab. ", "Kabupaten ").replace("Kab ", "Kabupaten ")
-    name_proper = name_proper.replace("Kota ", "Kota ").replace("Kota  ", "Kota ")
+        name_clean = clean_text(name)
+        name_proper = proper_case_preserve_acronyms(name_clean)
+        if code_clean in KOTA_CODES:
+            if not name_proper.startswith("Kota "):
+                name_proper = f"Kota {name_proper}"
+        else:
+            if not name_proper.startswith("Kabupaten "):
+                name_proper = f"Kabupaten {name_proper}"
     
     return code_clean, name_proper
 
