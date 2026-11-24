@@ -37,6 +37,7 @@ from kesehatan import create_kesehatan_tasks
 from pangan import create_pangan_tasks
 from infrastruktur import create_infrastruktur_tasks
 from ketangguhanbencana import create_ketangguhanbencana_tasks
+from perencanaan import create_perencanaan_tasks
 
 
 
@@ -86,6 +87,11 @@ PIPELINE_TASKS = [
         "create_tasks": create_ketangguhanbencana_tasks,
         "api_base_url": "http://192.168.222.57:8000/api",
     },
+    {
+        "name": "perencanaan",
+        "create_tasks": create_perencanaan_tasks,
+        "api_base_url": "mysql://db_perencanaan",
+    },
         
     # Contoh source baru dengan IP berbeda:
     # {
@@ -115,7 +121,7 @@ def execute_sql(statements):
 
     try:
         cursor.execute("SET SESSION sql_require_primary_key = 0")
-        for statement in statements:
+        for i, statement in enumerate(statements):
             if statement.strip():
                 logging.info(f"Executing SQL statement {i+1}/{len(statements)}: {statement[:100]}...")
                 cursor.execute(statement)
