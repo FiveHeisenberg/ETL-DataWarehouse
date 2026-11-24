@@ -234,12 +234,12 @@ def standardize_kendala(kendala: str) -> str:
 
 
 SOURCE_ENDPOINTS = {
-    "skpa": "/api/skpa",
-    "program": "/api/program",
-    "kegiatan": "/api/kegiatan",
-    "target": "/api/target",
-    "realisasi": "/api/realisasi",
-    "evaluasi": "/api/evaluasi",
+    "skpa": "/skpa",
+    "program": "/program",
+    "kegiatan": "/kegiatan",
+    "target": "/target",
+    "realisasi": "/realisasi",
+    "evaluasi": "/evaluasi",
 }
 
 SOURCE_TABLES = {
