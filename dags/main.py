@@ -96,7 +96,7 @@ PIPELINE_TASKS = [
     {
         "name": "perencanaan",
         "create_tasks": create_perencanaan_tasks,
-        "api_base_url": "mysql://db_perencanaan",
+        "api_base_url": "http://host.docker.internal:8003/api",
     },
         
     # Contoh source baru dengan IP berbeda:
@@ -260,9 +260,15 @@ def etl_dukcapil_to_dwh():
         dwh_db=DWH_DB,
     )
 
+    ACTIVE_PIPELINES = ["dispenda", "sda", "perencanaan"]
+
     prev_load = t_dwh
 
     for source in PIPELINE_TASKS:
+
+        if source["name"] not in ACTIVE_PIPELINES:
+            logging.info("Skip pipeline %s (not in ACTIVE_PIPELINES)", source["name"])
+            continue
 
         logging.info(
             "Membuat pipeline untuk source %s...",

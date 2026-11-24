@@ -4,6 +4,7 @@ import logging
 import re
 
 import pendulum
+import requests
 
 from airflow.sdk import task
 
@@ -232,6 +233,34 @@ def standardize_kendala(kendala: str) -> str:
     return proper_case_preserve_acronyms(k)
 
 
+SOURCE_ENDPOINTS = {
+    "skpa": "/api/skpa",
+    "program": "/api/program",
+    "kegiatan": "/api/kegiatan",
+    "target": "/api/target",
+    "realisasi": "/api/realisasi",
+    "evaluasi": "/api/evaluasi",
+}
+
+SOURCE_TABLES = {
+    "skpa": "master_skpa",
+    "program": "tb_program",
+    "kegiatan": "tb_kegiatan",
+    "target": "tb_target",
+    "realisasi": "tb_realisasi",
+    "evaluasi": "tb_evaluasi_pembangunan",
+}
+
+RAW_TABLE_MAP = {
+    "skpa": "raw_perencanaan_skpa",
+    "program": "raw_perencanaan_program",
+    "kegiatan": "raw_perencanaan_kegiatan",
+    "target": "raw_perencanaan_target",
+    "realisasi": "raw_perencanaan_realisasi",
+    "evaluasi": "raw_perencanaan_evaluasi",
+}
+
+
 def create_perencanaan_tasks(
     execute_sql,
     get_mysql_hook,
@@ -248,7 +277,7 @@ def create_perencanaan_tasks(
         cursor = conn.cursor()
 
         try:
-            logging.info("Memulai extract db_perencanaan -> raw_data...")
+            logging.info("Memulai extract API -> raw_data...")
 
             cursor.execute(f"DROP TABLE IF EXISTS `{raw_db}`.`raw_perencanaan_skpa`;")
             cursor.execute(f"DROP TABLE IF EXISTS `{raw_db}`.`raw_perencanaan_program`;")
@@ -260,49 +289,164 @@ def create_perencanaan_tasks(
 
             now_str = pendulum.now("Asia/Jakarta").to_datetime_string()
 
-            for key, src_table in SOURCE_TABLES.items():
+            for key, endpoint in SOURCE_ENDPOINTS.items():
                 raw_table = RAW_TABLE_MAP[key]
-                logging.info("Extract %s.%s -> %s.%s", SOURCE_DB, src_table, raw_db, raw_table)
 
-                cursor.execute(f"SELECT * FROM `{SOURCE_DB}`.`{src_table}`")
-                rows = cursor.fetchall()
-                columns = [desc[0] for desc in cursor.description]
+                url = f"{api_base_url}{endpoint}"
 
-                if not rows:
-                    logging.warning("Tidak ada data di %s.%s, skip.", SOURCE_DB, src_table)
+                logging.info(
+                    "Extract API %s -> %s.%s",
+                    url,
+                    raw_db,
+                    raw_table,
+                )
+
+                records = []
+                page = 1
+                max_pages = 100  # safety limit
+
+                while page <= max_pages:
+                    paginated_url = f"{url}?page={page}&limit=1000"
+
+                    logging.info(
+                        "Fetching page %d: %s",
+                        page,
+                        paginated_url,
+                    )
+
+                    try:
+                        response = requests.get(paginated_url, timeout=120)
+                        response.raise_for_status()
+
+                        payload = response.json()
+
+                        if isinstance(payload, list):
+                            page_records = payload
+                        elif isinstance(payload, dict):
+                            page_records = (
+                                payload.get("data")
+                                or payload.get("results")
+                                or [payload]
+                            )
+                        else:
+                            page_records = []
+
+                        if not page_records:
+                            logging.info(
+                                "Page %d kosong, stop pagination",
+                                page,
+                            )
+                            break
+
+                        records.extend(page_records)
+                        logging.info(
+                            "Page %d: %d records, total: %d",
+                            page,
+                            len(page_records),
+                            len(records),
+                        )
+
+                        page += 1
+
+                    except Exception as e:
+                        logging.error(
+                            "Error fetching page %d: %s",
+                            page,
+                            str(e),
+                        )
+                        break
+
+                if not records:
+                    logging.warning(
+                        "Tidak ada data dari %s, skip.",
+                        endpoint,
+                    )
                     continue
 
-                col_defs = ", ".join(f"`{col}` VARCHAR(500)" for col in columns)
-                cursor.execute(f"""
-                    CREATE TABLE `{raw_db}`.`{raw_table}` (
+                columns = list(records[0].keys())
+
+                cursor.execute(
+                    f"DROP TABLE IF EXISTS "
+                    f"`{raw_db}`.`{raw_table}`"
+                )
+
+                col_defs = ", ".join(
+                    f"`{col}` VARCHAR(500)"
+                    for col in columns
+                )
+
+                cursor.execute(
+                    f"""
+                    CREATE TABLE `{raw_db}`.`{raw_table}`
+                    (
                         id BIGINT NOT NULL AUTO_INCREMENT PRIMARY KEY,
                         {col_defs},
                         `sumber_database` VARCHAR(100),
                         `waktu_ekstraksi` DATETIME
-                    ) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci;
-                """)
+                    )
+                    CHARACTER SET utf8mb4
+                    COLLATE utf8mb4_0900_ai_ci;
+                    """
+                )
 
-                col_list = ", ".join(f"`{c}`" for c in columns)
-                placeholders = ", ".join(["%s"] * len(columns))
-                sql_insert = f"""
-                    INSERT INTO `{raw_db}`.`{raw_table}` ({col_list}, `sumber_database`, `waktu_ekstraksi`)
-                    VALUES ({placeholders}, %s, %s)
-                """
+                col_list = ", ".join(
+                    f"`{c}`" for c in columns
+                )
 
                 batch_size = 1000
                 total = 0
-                for i in range(0, len(rows), batch_size):
-                    batch = rows[i:i + batch_size]
-                    data = []
-                    for row in batch:
-                        row_data = [str(v) if v is not None else None for v in row]
-                        row_data.append(SOURCE_DB)
-                        row_data.append(now_str)
-                        data.append(row_data)
-                    cursor.executemany(sql_insert, data)
-                    total += len(data)
 
-                logging.info("Extract %s selesai. %d records.", src_table, total)
+                for i in range(0, len(records), batch_size):
+                    batch = records[i : i + batch_size]
+
+                    placeholders = ", ".join(
+                        ["%s"] * len(columns)
+                    )
+
+                    sql_insert = (
+                        f"INSERT INTO "
+                        f"`{raw_db}`.`{raw_table}` "
+                        f"({col_list}, "
+                        f"`sumber_database`, "
+                        f"`waktu_ekstraksi`) "
+                        f"VALUES "
+                        f"({placeholders}, %s, %s)"
+                    )
+
+                    rows = []
+                    for rec in batch:
+                        has_data = any(
+                            rec.get(c) is not None and str(rec.get(c, '')).strip() != ''
+                            for c in columns
+                        )
+
+                        if not has_data:
+                            logging.warning(
+                                "Skipping empty record in %s",
+                                key,
+                            )
+                            continue
+
+                        row = [
+                            (
+                                str(rec[c])
+                                if rec.get(c) is not None
+                                else None
+                            )
+                            for c in columns
+                        ]
+                        row.append("db_perencanaan")
+                        row.append(now_str)
+                        rows.append(row)
+
+                    cursor.executemany(sql_insert, rows)
+                    total += len(rows)
+
+                logging.info(
+                    "Extract %s selesai. %d records.",
+                    key,
+                    total,
+                )
 
             conn.commit()
             logging.info("Extract semua tabel selesai.")
