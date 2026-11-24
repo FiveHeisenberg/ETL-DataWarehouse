@@ -7,25 +7,15 @@ import requests
 
 from airflow.sdk import task
 
-
-# ============================================================
-# KONFIGURASI DOMAIN TENAGA KERJA (DISNAKER)
-# ============================================================
-
 SOURCE_ENDPOINTS = {
-    "tb_kasus_hi":          "/kasus-hi",
-    "tb_lowongan":          "/lowongan",
-    "tb_pelatihan_blk":     "/pelatihan-blk",
+    "tb_kasus_hi": "/kasus-hi",
+    "tb_lowongan": "/lowongan",
+    "tb_pelatihan_blk": "/pelatihan-blk",
     "tb_penduduk_pencaker": "/penduduk-pencaker",
-    "tb_penempatan":        "/penempatan",
-    "tb_perusahaan":        "/perusahaan",
+    "tb_penempatan": "/penempatan",
+    "tb_perusahaan": "/perusahaan",
     "tb_peserta_pelatihan": "/peserta-pelatihan",
 }
-
-
-# ============================================================
-# PIPELINE DISNAKER
-# ============================================================
 
 def create_disnaker_tasks(
     execute_sql,
@@ -36,10 +26,7 @@ def create_disnaker_tasks(
     api_base_url,
 ):
 
-    # ========================================================
     # TASK: EXTRACT API -> RAW_DATA
-    # ========================================================
-
     @task(task_id="extract_to_raw_disnaker")
     def extract_to_raw():
 
@@ -215,10 +202,7 @@ def create_disnaker_tasks(
             cursor.close()
             conn.close()
 
-    # ========================================================
     # TASK: TRANSFORM RAW_DATA -> STAGING_AREA
-    # ========================================================
-
     @task(task_id="transform_staging_disnaker")
     def transform_staging():
 
