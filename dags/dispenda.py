@@ -805,7 +805,7 @@ def create_dispenda_tasks(
             CREATE TABLE IF NOT EXISTS
             `{dwh_db}`.`dim_dispenda_waktu`
             (
-                waktu_key INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+                waktu_key INT PRIMARY KEY,
 
                 tanggal DATE NOT NULL,
 
@@ -1034,60 +1034,9 @@ def create_dispenda_tasks(
         # LOAD DIMENSION
         load_dimensions = [
 
-            # DIM WAKTU
+            # DIM WAKTU - Generate full calendar 2024-01-01 to 2026-12-31
             f"""
-            INSERT INTO `{dwh_db}`.`dim_dispenda_waktu`
-            (
-                waktu_key,
-                tanggal,
-                hari,
-                bulan,
-                nama_bulan,
-                kuartal,
-                tahun,
-                sumber_database,
-                waktu_load
-            )
-
-            SELECT
-                CAST(
-                    DATE_FORMAT(
-                        CURDATE(),
-                        '%Y%m%d'
-                    ) AS UNSIGNED
-                ),
-
-                CURDATE(),
-
-                DAY(CURDATE()),
-
-                MONTH(CURDATE()),
-
-                CASE MONTH(CURDATE())
-                    WHEN 1 THEN 'Januari'
-                    WHEN 2 THEN 'Februari'
-                    WHEN 3 THEN 'Maret'
-                    WHEN 4 THEN 'April'
-                    WHEN 5 THEN 'Mei'
-                    WHEN 6 THEN 'Juni'
-                    WHEN 7 THEN 'Juli'
-                    WHEN 8 THEN 'Agustus'
-                    WHEN 9 THEN 'September'
-                    WHEN 10 THEN 'Oktober'
-                    WHEN 11 THEN 'November'
-                    WHEN 12 THEN 'Desember'
-                END,
-
-                QUARTER(CURDATE()),
-
-                YEAR(CURDATE()),
-
-                '{SOURCE_DB}',
-
-                NOW()
-
-            ON DUPLICATE KEY UPDATE
-                waktu_load = VALUES(waktu_load);
+            TRUNCATE TABLE `{dwh_db}`.`dim_dispenda_waktu`;
             """,
 
             # DIM WAJIB PAJAK
@@ -1219,6 +1168,61 @@ def create_dispenda_tasks(
         ]
 
         execute_sql(load_dimensions)
+
+        # Populate dim_dispenda_waktu with full calendar 2024-01-01 to 2026-12-31
+        from datetime import date, timedelta
+
+        bulan_nama = {
+            1: 'Januari', 2: 'Februari', 3: 'Maret', 4: 'April',
+            5: 'Mei', 6: 'Juni', 7: 'Juli', 8: 'Agustus',
+            9: 'September', 10: 'Oktober', 11: 'November', 12: 'Desember'
+        }
+
+        start_date = date(2024, 1, 1)
+        end_date = date(2026, 12, 31)
+
+        current = start_date
+        batch = []
+        batch_size = 500
+        now_load = pendulum.now("Asia/Jakarta").to_datetime_string()
+
+        def insert_batch(rows):
+            values = ', '.join(
+                f"({waktu_key}, '{tanggal.isoformat()}', {hari}, {bulan}, "
+                f"'{nama_bulan}', {kuartal}, {tahun}, '{SOURCE_DB}', '{now_load}')"
+                for waktu_key, tanggal, hari, bulan, nama_bulan, kuartal, tahun in rows
+            )
+            sql = (
+                f"INSERT INTO `{dwh_db}`.`dim_dispenda_waktu` "
+                "(waktu_key, tanggal, hari, bulan, nama_bulan, kuartal, tahun, "
+                "sumber_database, waktu_load) "
+                f"VALUES {values}"
+            )
+            execute_sql([sql])
+            logging.info("Inserted batch of %d rows into dim_dispenda_waktu", len(rows))
+
+        logging.info("Populating dim_dispenda_waktu with calendar 2024-2026...")
+
+        while current <= end_date:
+            waktu_key = int(current.strftime('%Y%m%d'))
+            hari = current.day
+            bulan = current.month
+            nama_bulan = bulan_nama[bulan]
+            kuartal = (bulan - 1) // 3 + 1
+            tahun = current.year
+
+            batch.append((waktu_key, current, hari, bulan, nama_bulan, kuartal, tahun))
+
+            if len(batch) >= batch_size:
+                insert_batch(batch)
+                batch = []
+
+            current += timedelta(days=1)
+
+        if batch:
+            insert_batch(batch)
+
+        logging.info("dim_dispenda_waktu population complete")
 
         # LOAD FACT
         load_facts = [
