@@ -31,6 +31,7 @@ DWH_DB = "dwh"
 from dukcapil import create_dukcapil_tasks
 from disnaker import create_disnaker_tasks
 from dispenda import create_dispenda_tasks
+from sda import create_sda_tasks
 from pendidikan import create_pendidikan_tasks
 from dinsos import create_dinsos_tasks
 from kesehatan import create_kesehatan_tasks
@@ -55,7 +56,12 @@ PIPELINE_TASKS = [
     {
         "name": "dispenda",
         "create_tasks": create_dispenda_tasks,
-        "api_base_url": "http://host.docker.internal:8000/api",
+        "api_base_url": "http://host.docker.internal:8001/api",
+    },
+    {
+        "name": "sda",
+        "create_tasks": create_sda_tasks,
+        "api_base_url": "http://host.docker.internal:8002/api",
     },
     {
         "name": "pendidikan",
@@ -111,9 +117,11 @@ def get_mysql_hook():
     return MySqlHook(mysql_conn_id=MYSQL_CONN_ID)
 
 
-def execute_sql(statements):
+def execute_sql(statements, params=None):
     """
     Menjalankan sekumpulan SQL dalam satu koneksi.
+    statements: list of SQL strings
+    params: optional list of parameter tuples for parameterized queries (same length as statements)
     """
     hook = get_mysql_hook()
     conn = hook.get_conn()
@@ -124,7 +132,10 @@ def execute_sql(statements):
         for i, statement in enumerate(statements):
             if statement.strip():
                 logging.info(f"Executing SQL statement {i+1}/{len(statements)}: {statement[:100]}...")
-                cursor.execute(statement)
+                if params and i < len(params) and params[i] is not None:
+                    cursor.execute(statement, params[i])
+                else:
+                    cursor.execute(statement)
 
         conn.commit()
 
@@ -234,9 +245,11 @@ def etl_dukcapil_to_dwh():
     # ========================================================
     # DATA SOURCE PIPELINES
     #
-    # Setelah t_dwh selesai, pipeline bercabang ke tiap source.
-    # - Dispenda (dict): t_dwh >> t_extract, lalu paralel
-    # - Tim lain (task): t_dwh >> t_extract (return task pertama)
+    # Pipeline dieksekusi SEKUENSIAL antar-modul:
+    # t_dwh >> extract_1 >> transform_1 >> load_1
+    #                >> extract_2 >> transform_2 >> load_2
+    #                ...
+    # Ini memastikan tidak ada beban koneksi DB bersamaan.
     # ========================================================
 
     shared_kwargs = dict(
@@ -246,6 +259,8 @@ def etl_dukcapil_to_dwh():
         staging_db=STAGING_DB,
         dwh_db=DWH_DB,
     )
+
+    prev_load = t_dwh
 
     for source in PIPELINE_TASKS:
 
@@ -276,11 +291,14 @@ def etl_dukcapil_to_dwh():
             t_transform = hasil_task["transform_staging"]
             t_load = hasil_task["load_to_dwh"]
 
-            t_dwh >> t_extract
-            [t_extract, t_dwh] >> t_transform
+            prev_load >> t_extract
+            t_extract >> t_transform
             t_transform >> t_load
+
+            prev_load = t_load
         else:
-            t_dwh >> hasil_task
+            prev_load >> hasil_task
+            prev_load = hasil_task
 
 
 etl_dukcapil_to_dwh()

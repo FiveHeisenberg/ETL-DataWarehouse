@@ -44,15 +44,15 @@ echo ================================
 echo Dispenda API Server Starting
 echo ================================
 echo.
-echo API URL:  http://localhost:8000
-echo Swagger:  http://localhost:8000/docs
-echo Health:   http://localhost:8000/health
+echo API URL:  http://localhost:8001
+echo Swagger:  http://localhost:8001/docs
+echo Health:   http://localhost:8001/health
 echo.
 echo Press CTRL+C to stop
 echo.
 
 REM Start server (without reload to avoid watching root directory)
-python -m uvicorn main:app --host 127.0.0.1 --port 8000
+python -m uvicorn main:app --host 127.0.0.1 --port 8001
 
 REM Keep window open if error
 if errorlevel 1 (

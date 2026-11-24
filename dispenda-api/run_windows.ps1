@@ -22,8 +22,8 @@ $env:DISPENDA_DB_PASSWORD="PASSWORD_MYSQL"  # GANTI DENGAN PASSWORD KAMU
 $env:DISPENDA_DB_NAME="db_dispenda"
 
 # Run the API server
-Write-Host "Starting Dispenda API Server on http://0.0.0.0:8000"
-Write-Host "Swagger Docs: http://localhost:8000/docs"
+Write-Host "Starting Dispenda API Server on http://0.0.0.0:8001"
+Write-Host "Swagger Docs: http://localhost:8001/docs"
 Write-Host ""
 
-uvicorn main:app --host 0.0.0.0 --port 8000
+uvicorn main:app --host 0.0.0.0 --port 8001
